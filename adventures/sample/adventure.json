@@ -1,0 +1,67 @@
+{
+  "id": "the-lost-lantern",
+  "title": "The Lost Lantern",
+  "author": "GamebookRuntime",
+  "language": "en",
+  "start": "start",
+  "nodes": {
+    "start": {
+      "text": "# The Lost Lantern\n\nThe forest road swallowed the last light of the sun an hour ago. Your lantern — the one you promised the village elder you would deliver to the shrine on the hill — has gone dark.\n\nSomewhere ahead, a wolf howls. Somewhere behind, the village lights flicker. You hold the cold lantern tight and make a choice.",
+      "options": [
+        { "text": "Push on through the dark forest toward the shrine.", "next": "forest" },
+        { "text": "Turn back to the village and admit defeat.", "next": "village-return" }
+      ]
+    },
+    "forest": {
+      "text": "## Into the Dark\n\nThe trees lean close like old conspirators. After a while you reach a fork where a crooked signpost points two ways: *left, toward running water*, and *right, toward a faint warm glow*.\n\nYour grandmother's words come back to you: *\"Wolves fear fire, but water remembers names.\"*",
+      "image": "https://images.unsplash.com/photo-1419242902214-272b3f66ee7a?w=900&q=60",
+      "options": [
+        { "text": "Follow the sound of running water.", "next": "river" },
+        { "text": "Head toward the warm glow.", "next": "camp" }
+      ]
+    },
+    "river": {
+      "text": "## The Rolling Stone\n\nAt the riverbank sits a massive boulder blocking the old stepping stones. Carved into its face is a riddle: *\"Six paths I show, only chance decides. Let fate roll.\"*\n\nYou must attempt to push past the boulder — but the forest spirits demand a dice throw. You may let the spirits roll for you, or roll your own die and speak the number aloud.",
+      "options": [
+        {
+          "text": "Attempt to move the boulder (dice decides your fate).",
+          "dice": {
+            "sides": 6,
+            "outcomes": [
+              { "from": 1, "to": 3, "next": "boulder-fail" },
+              { "from": 4, "to": 6, "next": "boulder-success" }
+            ]
+          }
+        }
+      ]
+    },
+    "camp": {
+      "text": "## The Warm Glow\n\nThe glow belongs to a small campfire, and beside it sits a traveller roasting chestnuts. She waves you closer without a word.\n\n*\"The shrine keeper sent me,\"* she says, handing you a **small flask of lantern oil**. \"The wolves fear fire. Walk, don't run.\"\n\nWhen you look up from the flask, she is gone — only warm ashes remain.",
+      "options": [
+        { "text": "Thank the fire and climb to the shrine.", "next": "shrine" },
+        { "text": "Search the ashes for a clue.", "next": "river" }
+      ]
+    },
+    "boulder-fail": {
+      "text": "## A Cold Crossing\n\nThe boulder does not move. The spirits laugh like wind through reeds, and the river rises to meet you.\n\nYou lose your footing, and the lantern — empty as it is — slips into the water. All seems lost… until you notice a **warm light** glowing beneath the surface, deep below, like a sunken star.",
+      "options": [
+        { "text": "Dive after the light.", "next": "shrine" },
+        { "text": "Give up and sit on the bank until morning.", "next": "village-return" }
+      ]
+    },
+    "boulder-success": {
+      "text": "## Past the Stone\n\nWith a heave and a prayer, the boulder rolls aside. The stepping stones lead you up the far bank — and there, in a hollow tree, you find a small **vial of lantern oil** and a note: *\"One refill. Burn it wisely.\"*\n\nThe shrine is now visible on the hill above, and the wolves have gone quiet.",
+      "options": [
+        { "text": "Climb the hill to the shrine.", "next": "shrine" }
+      ]
+    },
+    "shrine": {
+      "text": "## The Shrine\n\nYou fill the lantern, strike a spark, and the flame catches — warm, golden, alive. At the shrine, the old keeper takes the lantern from your hands and hangs it above the door.\n\n*\"It was never about delivering the light,\"* she says. *\"It was about carrying it.\"*\n\n## 🎉 The End — you kept your promise.",
+      "ending": true
+    },
+    "village-return": {
+      "text": "## The Long Walk Home\n\nYou retrace your steps. The village elder listens silently as you explain, then nods slowly.\n\n*\"Another will try tomorrow,\"* she says. \"Perhaps with braver feet.\"\n\nYou sleep, but the howling on the hill stays with you for many nights.\n\n## The End (or is it?)",
+      "ending": true
+    }
+  }
+}

@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Gamebook</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<main id="app" class="app">
+  <!-- Start screen / branch selection / story are rendered here -->
+  <div class="loading" id="loading">…</div>
+</main>
+<template id="tpl-start">
+  <section class="screen start">
+    <h1 class="title"></h1>
+    <p class="author"></p>
+    <div class="branch-picker hidden">
+      <label class="branch-label" for="branch"></label>
+      <select id="branch"></select>
+      <button class="btn btn-secondary btn-branch-reload"></button>
+    </div>
+    <button class="btn btn-primary btn-begin"></button>
+  </section>
+</template>
+<template id="tpl-node">
+  <article class="screen node">
+    <div class="node-image hidden"><img alt=""></div>
+    <div class="node-text"></div>
+    <div class="node-options"></div>
+    <div class="node-end hidden"></div>
+  </article>
+</template>
+<template id="tpl-option">
+  <button class="btn btn-option"></button>
+</template>
+<template id="tpl-dice">
+  <div class="dice-block">
+    <div class="dice-result hidden"><span class="dice-value"></span></div>
+    <div class="dice-actions">
+      <button class="btn btn-dice-roll"></button>
+      <div class="dice-manual">
+        <input class="dice-input" type="number" min="1" max="6" inputmode="numeric">
+        <button class="btn btn-dice-use"></button>
+      </div>
+    </div>
+  </div>
+</template>
+<script src="app.js"></script>
+</body>
+</html>
