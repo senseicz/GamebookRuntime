@@ -60,24 +60,17 @@ Schema:
   "author": "…",
   "language": "en",
   "start": "start",
-  "labels": { "cs": { "begin": "Začít", "theEnd": "Konec" } },
-  "nodes": {
-    "node-key": {
-      "text": "Markdown: paragraphs, **bold**, *italic*, ## headings, ![alt](url) images",
-      "image": "optional-image-url.jpg",
-      "options": [
-        { "text": "Choice label", "next": "other-node" },
-        { "text": "Chance decides", "next": "fallback-node",
-          "dice": { "sides": 6, "outcomes": [
-            { "from": 1, "to": 3, "next": "failure" },
-            { "from": 4, "to": 6, "next": "success" }
-          ] } }
-      ],
-      "ending": false
-    }
-  }
+  "chapters": ["chapters/part2.json", "chapters/part3.json"],
+  "labels": { "cs": { "begin": "Začít", "theEnd": "Konec", "save": "Uložit postup" } },
+  "nodes": { … }
 }
 ```
+
+**Chapters (long adventures):** if the story is long, split nodes across several JSON files. The main file lists them under `"chapters"` (paths relative to the main file). Each chapter file contains only `nodes` (and optionally `labels`); all nodes are merged into one adventure when the runtime loads it. Node keys must be unique across all files. Chapters are merged once at startup — do not expect changes to be picked up while running. Validation runs across the *merged* adventure.
+
+**UI language:** the adventure file also drives the runtime UI (buttons like "Begin", "Save progress", "Roll the dice"). Provide a `"labels"` object keyed by language tag; any key you omit falls back to English. Available keys:
+
+`loading, begin, restart, restartQ, continue, save, savePrompt, saves, load, delete, branch, reload, roll, useValue, yourRoll, theEnd, error`
 
 Hard requirements (the runtime validates these at startup and refuses to boot otherwise):
 - `id`, `title`, `start` present; `start` exists in `nodes`.

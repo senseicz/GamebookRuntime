@@ -13,6 +13,8 @@ public sealed class Adventure
     public string Start { get; set; } = "";
     /// <summary>All story nodes, keyed by node key.</summary>
     public Dictionary<string, AdventureNode> Nodes { get; set; } = new(StringComparer.OrdinalIgnoreCase);
+    /// <summary>Optional paths to chapter files (relative to this file) whose nodes are merged into this adventure.</summary>
+    public List<string>? Chapters { get; set; }
     /// <summary>Optional custom labels, keyed by language tag, for UI strings. Falls back to English defaults.</summary>
     public Dictionary<string, Dictionary<string, string>> Labels { get; set; } = new();
 }

@@ -13,6 +13,7 @@
 </main>
 <template id="tpl-start">
   <section class="screen start">
+    <div class="topbar"><button class="btn btn-icon btn-theme" title="theme"></button></div>
     <h1 class="title"></h1>
     <p class="author"></p>
     <div class="branch-picker hidden">
@@ -21,10 +22,27 @@
       <button class="btn btn-secondary btn-branch-reload"></button>
     </div>
     <button class="btn btn-primary btn-begin"></button>
+    <div class="saves hidden">
+      <h2 class="saves-title"></h2>
+      <div class="saves-list"></div>
+    </div>
   </section>
+</template>
+<template id="tpl-save-item">
+  <div class="save-item">
+    <div class="save-info"><strong class="save-name"></strong><span class="save-meta"></span></div>
+    <div class="save-actions">
+      <button class="btn btn-small btn-load"></button>
+      <button class="btn btn-small btn-secondary btn-delete"></button>
+    </div>
+  </div>
 </template>
 <template id="tpl-node">
   <article class="screen node">
+    <div class="topbar">
+      <button class="btn btn-secondary btn-save"></button>
+      <button class="btn btn-icon btn-theme" title="theme"></button>
+    </div>
     <div class="node-image hidden"><img alt=""></div>
     <div class="node-text"></div>
     <div class="node-options"></div>

@@ -6,9 +6,12 @@ A tiny, self-hostable **.NET 10** runtime for gamebook-style text adventures.
 - The runtime loads the adventure **server-side at startup** — the repo name, path and any token never reach the browser, and the adventure is read-only while running.
 - **Branch selection** can be enabled at deploy time (great for testing drafts on a `draft` branch).
 - Dice-driven steps (d6 by default): the reader can let the server roll, or type in the result of their own physical die.
-- **Any language** — adventure text is untouched; UI strings can be overridden per language via the adventure file.
+- **Any language** — adventure text is untouched; the **whole UI** (buttons, prompts) is driven by the adventure's `labels`, so the reader sees a single consistent language.
 - **Images** are embedded with markdown `![alt](url)` or a node-level `image` field.
-- **Progress is saved in the browser's localStorage** — no server-side player accounts.
+- **Progress is saved in the browser's localStorage** — automatic "continue" plus multiple named saves per adventure.
+- **Chapters** — long adventures can be split across multiple JSON files, merged at load time.
+- **Dark & light theme** — follows the system preference by default, switchable in the UI.
+- **Forward-only** — no undo: there is no back button; if the story allows backtracking, it's an explicit adventure option.
 - Responsive single-page UI (phone / tablet / desktop), no build step, no frontend dependencies.
 
 ## Quick start (local dev)
@@ -43,7 +46,8 @@ The adventure is fetched **once at startup** and cached in memory; GitHub is not
   "author": "Your Name",
   "language": "en",
   "start": "first-node-key",
-  "labels": { "cs": { "begin": "Začít dobrodružství" } },
+  "chapters": ["chapters/part2.json", "chapters/part3.json"],
+  "labels": { "cs": { "begin": "Začít dobrodružství", "save": "Uložit postup" } },
   "nodes": {
     "first-node": {
       "text": "Story text. **Markdown subset** supported: # headings, **bold**, *italic*, [links](https://…), ![images](https://…).",
@@ -66,13 +70,22 @@ The adventure is fetched **once at startup** and cached in memory; GitHub is not
 }
 ```
 
+### Chapters (long adventures)
+
+Very long adventures can be split across multiple JSON files. In the main file, list them under `"chapters"` (paths relative to the main file). A chapter file contains only `nodes` (and optionally `labels`); all nodes are merged into one adventure at load time. Node keys must be unique across all files, and validation runs across the merged result. Chapters are read once at startup — the adventure is immutable while running.
+
+### UI language (`labels`)
+
+The adventure file drives the runtime UI. Provide a `"labels"` object keyed by language tag (matching the adventure's `language`); any key you omit falls back to English. Available keys: `loading, begin, restart, restartQ, continue, save, savePrompt, saves, load, delete, branch, reload, roll, useValue, yourRoll, theEnd, error`.
+
 Rules enforced at startup (the runtime refuses to start on an invalid adventure):
 
-- every `next` / dice outcome must point to an existing node,
+- every `next` / dice outcome must point to an existing node (across all chapters),
 - every non-ending node must have at least one option,
-- dice outcomes must cover every value `1..sides`.
+- dice outcomes must cover every value `1..sides`,
+- node keys must be unique across the main file and all chapters.
 
-See [`adventures/sample/adventure.json`](adventures/sample/adventure.json) for a complete example (*The Lost Lantern*, 7 nodes with a dice step).
+See [`adventures/sample/adventure.json`](adventures/sample/adventure.json) for a complete example (*The Lost Lantern*, 8 nodes across two files, with a dice step and Czech UI labels).
 
 ---
 

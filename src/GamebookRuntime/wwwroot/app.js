@@ -7,69 +7,118 @@
 
   // ---------- state ----------
   const state = {
-    meta: null,          // { id, title, author, language }
+    meta: null,          // { id, title, author, language, start, labels }
     branches: [],        // branch names, empty when selection disabled
     branch: null,        // chosen branch or null
-    history: [],         // visited node keys
+    history: [],         // visited node keys — forward-only, used for saves
     diceLog: [],         // { node, value }
   };
 
-  const storageKey = () => `gamebook:${state.meta?.id ?? "?"}:branch:${state.branch ?? "default"}`;
+  let customLabels = null;
 
-  function saveProgress() {
-    try {
-      localStorage.setItem(storageKey(), JSON.stringify({
-        history: state.history,
-        diceLog: state.diceLog,
-        savedAt: Date.now(),
-      }));
-    } catch { /* storage unavailable — play without saving */ }
+  const baseKey = () => `gamebook:${state.meta?.id ?? "?"}:branch:${state.branch ?? "default"}`;
+
+  // ---------- theme ----------
+  const THEME_KEY = "gamebook:theme";
+  function applyTheme(theme) {
+    document.documentElement.dataset.theme = theme;
+    try { localStorage.setItem(THEME_KEY, theme); } catch {}
+    document.querySelectorAll(".btn-theme").forEach((b) => (b.textContent = theme === "light" ? "🌙" : "☀️"));
+  }
+  function initTheme() {
+    let theme = null;
+    try { theme = localStorage.getItem(THEME_KEY); } catch {}
+    if (!theme) theme = window.matchMedia?.("(prefers-color-scheme: light)").matches ? "light" : "dark";
+    applyTheme(theme);
+    document.addEventListener("click", (e) => {
+      const btn = e.target.closest(".btn-theme");
+      if (btn) applyTheme(document.documentElement.dataset.theme === "light" ? "dark" : "light");
+    });
   }
 
-  function loadProgress() {
+  // ---------- saves (multiple named saves per adventure) ----------
+  const savesKey = () => `${baseKey()}:saves`;
+
+  function listSaves() {
     try {
-      const raw = localStorage.getItem(storageKey());
-      if (!raw) return null;
-      const p = JSON.parse(raw);
-      return Array.isArray(p.history) ? p : null;
-    } catch { return null; }
+      const raw = localStorage.getItem(savesKey());
+      const arr = raw ? JSON.parse(raw) : [];
+      return Array.isArray(arr) ? arr : [];
+    } catch { return []; }
+  }
+
+  function writeSaves(saves) {
+    try { localStorage.setItem(savesKey(), JSON.stringify(saves)); } catch {}
+  }
+
+  function saveGame(name) {
+    const saves = listSaves().filter((s) => s.name !== name);
+    saves.unshift({ name, node: state.history[state.history.length - 1], history: [...state.history], diceLog: [...state.diceLog], savedAt: Date.now() });
+    writeSaves(saves);
+  }
+
+  function deleteSave(name) {
+    try {
+      localStorage.setItem(savesKey(), JSON.stringify(listSaves().filter((s) => s.name !== name)));
+    } catch {}
   }
 
   function clearProgress() {
-    try { localStorage.removeItem(storageKey()); } catch {}
+    try { localStorage.removeItem(`${baseKey()}:autosave`); } catch {}
   }
 
-  // ---------- i18n (UI strings; adventure text is whatever the author wrote) ----------
+  // ---------- autosave (continue where you left off) ----------
+  function saveProgress() {
+    try {
+      localStorage.setItem(`${baseKey()}:autosave`, JSON.stringify({ history: state.history, diceLog: state.diceLog, savedAt: Date.now() }));
+    } catch { /* storage unavailable — play without saving */ }
+  }
+  function loadAutosave() {
+    try {
+      const p = JSON.parse(localStorage.getItem(`${baseKey()}:autosave`) ?? "null");
+      return Array.isArray(p?.history) ? p : null;
+    } catch { return null; }
+  }
+
+  // ---------- i18n ----------
+  // English defaults; adventure.json "labels" (per language) overrides any of these,
+  // so the adventure file drives the language of the whole UI.
   const labels = {
-    en: {
-      loading: "Loading…", begin: "Begin the adventure", continue: "Continue where you left off",
-      restart: "Start over", branch: "Story version (branch)", reload: "Refresh branches",
-      roll: "Roll the dice", useValue: "Use value", yourRoll: "You rolled", theEnd: "The End",
-      restartQ: "Start over from the beginning?", back: "Back", error: "Something went wrong",
-    },
+    loading: "Loading…",
+    begin: "Begin the adventure",
+    restart: "Start over",
+    restartQ: "Start over from the beginning?",
+    continue: "Continue where you left off",
+    save: "Save progress",
+    savePrompt: "Name this save:",
+    saves: "Saved games",
+    load: "Load",
+    delete: "Delete",
+    noSaves: "No saved games yet.",
+    branch: "Story version (branch)",
+    reload: "Refresh branches",
+    roll: "Roll the dice",
+    useValue: "Use value",
+    yourRoll: "You rolled",
+    theEnd: "The End",
+    error: "Something went wrong",
   };
   function t(key) {
-    // 1) adventure-provided labels for its language, 2) built-in english, 3) key itself
     const lang = state.meta?.language?.split("-")[0] ?? "en";
-    const custom = state.meta && customLabels && customLabels[lang]?.[key];
-    return custom ?? labels.en[key] ?? key;
+    return customLabels?.[lang]?.[key] ?? labels[key] ?? key;
   }
-  let customLabels = null;
 
   // ---------- tiny markdown renderer ----------
-  // Supports: #/##/### headings, paragraphs, **bold**, *italic*, [text](url), ![alt](url)
   const esc = (s) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
   function renderMarkdown(src) {
-    const blocks = src.trim().split(/\n{2,}/);
-    const html = blocks.map((b) => {
+    return src.trim().split(/\n{2,}/).map((b) => {
       const line = b.trim();
       const img = /^\!\[([^\]]*)\]\(([^)\s]+)\)$/.exec(line);
       if (img) return `<img src="${esc(img[2])}" alt="${esc(img[1])}" loading="lazy">`;
       const h = /^(#{1,3})\s+(.*)$/.exec(line);
       if (h) { const l = h[1].length; return `<h${l}>${inline(h[2])}</h${l}>`; }
       return `<p>${inline(line).replace(/\n/g, "<br>")}</p>`;
-    });
-    return html.join("\n");
+    }).join("\n");
   }
   function inline(s) {
     return esc(s)
@@ -82,19 +131,23 @@
   // ---------- rendering ----------
   function showStart() {
     const tpl = $("#tpl-start").content.cloneNode(true);
+    renderStartInto(tpl);
+    app.replaceChildren(tpl);
+  }
+
+  function renderStartInto(tpl) {
     $(".title", tpl).textContent = state.meta.title;
     $(".author", tpl).textContent = state.meta.author ? "— " + state.meta.author : "";
-    $(".btn-begin", tpl).textContent = state.meta.startLabel ?? t("begin");
 
-    const hasProgress = !!loadProgress();
+    const hasProgress = !!loadAutosave();
     if (hasProgress) {
       const cont = document.createElement("button");
       cont.className = "btn btn-primary btn-continue";
       cont.textContent = t("continue");
       cont.addEventListener("click", () => {
-        const p = loadProgress();
+        const p = loadAutosave();
         state.history = p.history; state.diceLog = p.diceLog ?? [];
-        showNode(state.history[state.history.length - 1]);
+        gotoNode(state.history[state.history.length - 1], { refetch: true });
       });
       tpl.querySelector(".start").prepend(cont);
       $(".btn-begin", tpl).classList.remove("btn-primary");
@@ -124,20 +177,47 @@
         clearProgress(); state.history = [];
         showStart();
       });
-      $(".btn-branch-reload", tpl).addEventListener("click", async () => {
-        await initBranches(); showStart();
-      });
+      $(".btn-branch-reload", tpl).addEventListener("click", async () => { await initBranches(); showStart(); });
     }
 
-    app.replaceChildren(tpl);
+    // saved games
+    const saves = listSaves();
+    const box = $(".saves", tpl);
+    if (saves.length) {
+      box.classList.remove("hidden");
+      $(".saves-title", tpl).textContent = t("saves");
+      const list = $(".saves-list", tpl);
+      list.replaceChildren(...saves.map((s) => saveItem(s)));
+    }
   }
 
-  async function gotoNode(key) {
+  function saveItem(s) {
+    const item = $("#tpl-save-item").content.cloneNode(true);
+    $(".save-name", item).textContent = s.name;
+    const date = new Date(s.savedAt).toLocaleString();
+    $(".save-meta", item).textContent = `${s.node} · ${date}`;
+    $(".btn-load", item).textContent = t("load");
+    $(".btn-load", item).addEventListener("click", () => {
+      state.history = [...s.history]; state.diceLog = s.diceLog ?? [];
+      saveProgress();
+      gotoNode(s.node, { refetch: true });
+    });
+    $(".btn-delete", item).textContent = t("delete");
+    $(".btn-delete", item).addEventListener("click", () => { deleteSave(s.name); showStart(); });
+    return item;
+  }
+
+  async function gotoNode(key, { refetch = false } = {}) {
     setLoading();
     try {
       const q = state.branch ? `?branch=${encodeURIComponent(state.branch)}` : "";
       const node = await api(`/api/node/${encodeURIComponent(key)}${q}`);
-      state.history.push(key);
+      if (refetch) {
+        // restoring: rebuild history around the saved node
+        // history already restored from save
+      } else {
+        state.history.push(key);
+      }
       saveProgress();
       showNode(node);
     } catch (e) { showError(e); }
@@ -145,28 +225,18 @@
 
   function showNode(node) {
     const tpl = $("#tpl-node").content.cloneNode(true);
-    const art = $(".node", tpl);
-    art.dataset.key = node.key;
 
-    // top bar: back + restart
-    const bar = document.createElement("div");
-    bar.className = "topbar";
-    const backBtn = document.createElement("button");
-    backBtn.className = "btn btn-secondary";
-    backBtn.textContent = `← ${t("back")}`;
-    backBtn.disabled = state.history.length <= 1;
-    backBtn.addEventListener("click", () => {
-      state.history.pop(); saveProgress();
-      showNodeFromCache(state.history[state.history.length - 1]) ?? gotoNode(state.history[state.history.length - 1]);
+    // top bar: save + theme. No back button — adventures are forward-only.
+    const bar = $(".topbar", tpl);
+    const saveBtn = $(".btn-save", tpl);
+    saveBtn.textContent = t("save");
+    saveBtn.addEventListener("click", () => {
+      const name = prompt(t("savePrompt"), `${state.meta.title} · ${state.history.length}`);
+      if (!name) return;
+      const saves = listSaves().filter((s) => s.name !== name);
+      saves.unshift({ name, node: state.history[state.history.length - 1], history: [...state.history], diceLog: [...state.diceLog], savedAt: Date.now() });
+      writeSaves(saves);
     });
-    const restartBtn = document.createElement("button");
-    restartBtn.className = "btn btn-secondary";
-    restartBtn.textContent = t("restart");
-    restartBtn.addEventListener("click", () => {
-      if (confirm(t("restartQ"))) { clearProgress(); state.history = []; state.diceLog = []; gotoNode(state.meta.start ?? "start"); }
-    });
-    bar.append(backBtn, restartBtn);
-    art.prepend(bar);
 
     if (node.image) {
       const wrap = $(".node-image", tpl);
@@ -197,9 +267,6 @@
     app.replaceChildren(tpl);
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
-
-  // Rendering the previous node when going back requires refetch; simple approach:
-  function showNodeFromCache() { return null; }
 
   function buildDiceBlock(opt) {
     const tpl = $("#tpl-dice").content.cloneNode(true);
@@ -260,6 +327,7 @@
   }
 
   async function boot() {
+    initTheme();
     setLoading();
     try {
       await initBranches();

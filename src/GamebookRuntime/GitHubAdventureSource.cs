@@ -70,41 +70,90 @@ public sealed class GitHubAdventureSource
         return branches.Select(b => b.Name).ToList();
     }
 
-    /// <summary>Fetch and parse adventure JSON from a specific branch (or the default branch).</summary>
+    /// <summary>
+    /// Fetch and parse the adventure (main file plus any chapter files) from a
+    /// specific branch, or the default branch. Chapters are merged into one
+    /// read-only adventure at load time.
+    /// </summary>
     public async Task<Adventure> LoadAsync(string? branch = null, CancellationToken ct = default)
     {
-        string json;
-        if (_isLocal)
+        var json = await FetchJsonAsync(FilePath, branch, ct);
+
+        var adventure = Deserialize(json, FilePath);
+
+        // Chapters: additional JSON files with more nodes/labels, merged at load time.
+        var problems = new List<string>();
+        foreach (var chapter in adventure.Chapters ?? [])
         {
-            json = await File.ReadAllTextAsync(LocalFile!, ct);
+            var chapterPath = ResolveRelative(FilePath, chapter);
+            var chapterJson = await FetchJsonAsync(chapterPath, branch, ct);
+            var chapterAdventure = Deserialize(chapterJson, chapterPath);
+
+            foreach (var (key, node) in chapterAdventure.Nodes)
+            {
+                if (!adventure.Nodes.TryAdd(key, node))
+                    problems.Add($"duplicate node key '{key}' in chapter '{chapter}'");
+            }
+            foreach (var (lang, labels) in chapterAdventure.Labels)
+            {
+                var target = adventure.Labels.TryGetValue(lang, out var existing)
+                    ? existing
+                    : adventure.Labels[lang] = new(StringComparer.Ordinal);
+                foreach (var (k, v) in labels) target[k] = v;
+            }
         }
-        else
+
+        if (problems.Count > 0)
+            throw new InvalidOperationException("Adventure chapter merge failed:\n - " + string.Join("\n - ", problems));
+
+        Validate(adventure);
+        return adventure;
+    }
+
+    private Adventure Deserialize(string json, string sourceName)
+    {
+        try
         {
+            return JsonSerializer.Deserialize<Adventure>(json, new JsonSerializerOptions
+            {
+                PropertyNameCaseInsensitive = true,
+                ReadCommentHandling = JsonCommentHandling.Skip,
+                AllowTrailingCommas = true,
+            }) ?? throw new InvalidOperationException($"'{sourceName}' is not a valid adventure file.");
+        }
+        catch (System.Text.Json.JsonException e)
+        {
+            throw new InvalidOperationException($"'{sourceName}' is not valid JSON: {e.Message}");
+        }
+    }
+
+    /// <summary>Resolve a chapter path relative to the main adventure file.</summary>
+    private string ResolveRelative(string basePath, string relative)
+    {
+        if (Path.IsPathRooted(relative)) return relative;
+        var dir = Path.GetDirectoryName(basePath);
+        return string.IsNullOrEmpty(dir) ? relative : $"{dir}/{relative}".Replace("\\", "/");
+    }
+
+    private async Task<string> FetchJsonAsync(string path, string? branch, CancellationToken ct)
+    {
+        if (_isLocal)
+            return await File.ReadAllTextAsync(path, ct);
+
         var b = branch is null ? DefaultBranch : Uri.EscapeDataString(branch);
-        var url = $"/repos/{Repo}/contents/{Uri.EscapeDataString(FilePath).Replace("%2F", "/")}?ref={b}";
+        var url = $"/repos/{Repo}/contents/{Uri.EscapeDataString(path).Replace("%2F", "/")}?ref={b}";
 
         using var resp = await _http.GetAsync(url, ct);
         if (!resp.IsSuccessStatusCode)
             throw new InvalidOperationException(
-                $"Could not fetch '{FilePath}' from {Repo}@{b}: HTTP {(int)resp.StatusCode}. " +
+                $"Could not fetch '{path}' from {Repo}@{b}: HTTP {(int)resp.StatusCode}. " +
                 "Check the repo name, branch, file path and token.");
 
         // Base64 content payload from the GitHub contents API
         using var doc = await JsonDocument.ParseAsync(await resp.Content.ReadAsStreamAsync(ct), cancellationToken: ct);
         var content = doc.RootElement.GetProperty("content").GetString()!
             .Replace("\n", "").Replace("\\n", "");
-        json = System.Text.Encoding.UTF8.GetString(Convert.FromBase64String(content));
-        }
-
-        var adventure = JsonSerializer.Deserialize<Adventure>(json, new JsonSerializerOptions
-        {
-            PropertyNameCaseInsensitive = true,
-            ReadCommentHandling = JsonCommentHandling.Skip,
-            AllowTrailingCommas = true,
-        }) ?? throw new InvalidOperationException($"'{FilePath}' is not a valid adventure file.");
-
-        Validate(adventure);
-        return adventure;
+        return System.Text.Encoding.UTF8.GetString(Convert.FromBase64String(content));
     }
 
     private static void Validate(Adventure a)
