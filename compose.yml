@@ -1,0 +1,27 @@
+# Example deployment: the adventure is downloaded from GitHub at container
+# start, into the "adventure-data" volume. The runtime itself is read-only.
+#
+#   docker compose up -d            # start
+#   docker compose down && docker compose up -d   # after pushing new commits (restart re-downloads only if file missing)
+#   To pick up new commits with a persistent volume, either:
+#     docker compose run --rm app sh -c 'rm -rf /data/* && true'  … or simply:
+#   set ADVENTURE_FORCE_DOWNLOAD=1 once.
+services:
+  app:
+    build: .
+    ports:
+      - "8080:8080"
+    environment:
+      # --- where to get the adventure (deployment-time download) ---
+      ADVENTURE_REPO: your-name/my-adventure
+      # Branch/tag/commit — this is how you choose a branch: redeploy with a different value.
+      ADVENTURE_REPO_BRANCH: main
+      ADVENTURE_FILE_PATH: adventure.json
+      # ADVENTURE_TOKEN: ghp_xxx            # only for private repos
+      # ADVENTURE_FORCE_DOWNLOAD: "1"       # force re-download on start
+    volumes:
+      - adventure-data:/data
+    restart: unless-stopped
+
+volumes:
+  adventure-data:

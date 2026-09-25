@@ -81,7 +81,8 @@ Hard requirements (the runtime validates these at startup and refuses to boot ot
 
 ### 6. Publish (hand these steps to the user)
 
-1. `git init` a new GitHub repo (or reuse the world repo) and commit `adventure.json` (plus `world.md`, images).
-2. Deploy the runtime with their repo: `ADVENTURE__GITHUB_REPO=<owner>/<repo>` (full guide in the runtime's README — Render/Fly/Azure/Docker).
-3. For testing drafts: work on a branch (e.g. `draft`) and set `ADVENTURE__ALLOW_BRANCH_SELECTION=true` at deployment so testers can pick the branch at start.
-4. Reload = restart the container; the adventure loads fresh from GitHub at startup and cannot be edited through the runtime.
+1. `git init` a new GitHub repo (or reuse the world repo) and commit `adventure.json` (+ `chapters/`, `world.md`, images). Branches version the story: `main` = stable, `draft` = work in progress.
+2. Deploy the runtime pointing at the repo — the deployment step downloads the adventure; the runtime reads only local files (full guide in the runtime's README — docker compose / Render / Fly / Azure).
+   - Choose the branch **at deployment**: `ADVENTURE_REPO_BRANCH=main` for release, `draft` for testers (redeploy to switch).
+   - Updating later: push commits, then restart with `ADVENTURE_FORCE_DOWNLOAD=1` (or no persistent volume, where restart always re-downloads).
+3. The runtime cannot modify the adventure while running — changing the story is always a commit + redeploy.

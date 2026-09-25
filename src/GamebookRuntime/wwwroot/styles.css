@@ -72,9 +72,7 @@ body {
 
 .hidden { display: none !important; }
 
-.branch-picker { margin: 0 0 1.5rem; }
-.branch-label { display: block; color: var(--muted); margin-bottom: .35rem; font-size: .95rem; }
-.branch-picker select, .dice-input {
+.dice-input {
   width: 100%; padding: .7rem .8rem; border-radius: var(--radius);
   background: var(--panel-2); color: var(--text); border: 1px solid var(--border-strong); font: inherit;
 }

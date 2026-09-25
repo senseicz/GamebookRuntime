@@ -3,8 +3,8 @@
 A tiny, self-hostable **.NET 10** runtime for gamebook-style text adventures.
 
 - Adventures live as **JSON files in the author's own GitHub repository**.
-- The runtime loads the adventure **server-side at startup** — the repo name, path and any token never reach the browser, and the adventure is read-only while running.
-- **Branch selection** can be enabled at deploy time (great for testing drafts on a `draft` branch).
+- The adventure is **downloaded at deployment time** into a local data directory; the runtime reads **local files only** — no GitHub calls while playing, instant startup, read-only for its whole lifetime.
+- **Branch selection happens at deployment** (`ADVENTURE_REPO_BRANCH` in docker compose): point the runtime at `main` for the public release or a draft branch for testing.
 - Dice-driven steps (d6 by default): the reader can let the server roll, or type in the result of their own physical die.
 - **Any language** — adventure text is untouched; the **whole UI** (buttons, prompts) is driven by the adventure's `labels`, so the reader sees a single consistent language.
 - **Images** are embedded with markdown `![alt](url)` or a node-level `image` field.
@@ -17,10 +17,9 @@ A tiny, self-hostable **.NET 10** runtime for gamebook-style text adventures.
 ## Quick start (local dev)
 
 ```bash
+# point the runtime at a directory containing adventure.json:
 cd src/GamebookRuntime
-dotnet run -- --Adventure:GitHubRepo "owner/adventure-repo"
-# or, for testing with a local file (dev only):
-dotnet run -- --Adventure:GitHubRepo "local:../../adventures/sample/adventure.json"
+dotnet run -- --Adventure:DataDir "../../adventures/sample"
 ```
 
 Then open the printed URL (e.g. http://localhost:5000).
@@ -29,13 +28,20 @@ Then open the printed URL (e.g. http://localhost:5000).
 
 | Setting | Env var | Default | Meaning |
 |---|---|---|---|
-| `Adventure:GitHubRepo` | `ADVENTURE__GITHUB_REPO` | — | `owner/repo` (required in production) or `local:<path>` for dev |
-| `Adventure:Branch` | `ADVENTURE__BRANCH` | `main` | Branch to load when selection is disabled |
-| `Adventure:FilePath` | `ADVENTURE__FILE_PATH` | `adventure.json` | Path to the JSON inside the repo |
-| `Adventure:AllowBranchSelection` | `ADVENTURE__ALLOWBRANCHSELECTION` | `false` | Show a branch picker on the start screen |
-| `Adventure:Token` | `ADVENTURE__TOKEN` | — | GitHub token (only needed for private repos) |
+| `Adventure:DataDir` | `ADVENTURE__DATADIR` | `data` (`/data` in Docker) | Directory holding the downloaded adventure |
+| `Adventure:FilePath` | `ADVENTURE__FILEPATH` | `adventure.json` | Main adventure JSON, relative to the data dir |
 
-The adventure is fetched **once at startup** and cached in memory; GitHub is not called again during play. The runtime cannot modify the source repo — it has no write path.
+The entrypoint script (`docker-entrypoint.sh`) handles the deployment-time download:
+
+| Env var (entrypoint) | Default | Meaning |
+|---|---|---|
+| `ADVENTURE_REPO` | — | `owner/name` of the adventure repo on GitHub |
+| `ADVENTURE_REPO_BRANCH` | `main` | Branch, tag or commit to download |
+| `ADVENTURE_FILE_PATH` | `adventure.json` | Path to the main JSON inside the repo |
+| `ADVENTURE_TOKEN` | — | GitHub token (private repos / rate limits) |
+| `ADVENTURE_FORCE_DOWNLOAD` | unset | Set to `1` to re-download even if the file exists |
+
+The adventure is read from disk **once at startup** and held in memory; the running instance is immutable and has no write path.
 
 ## Adventure file format
 
@@ -101,49 +107,71 @@ You host the runtime yourself; each author owns their adventure repo. The runtim
 
 ## 2. Deploy the runtime
 
-Pick **one** option. All of them run the Docker image and have free or near-free tiers.
+Pick **one** option. The deployment step downloads your adventure from GitHub into the container's data volume; the runtime itself never talks to GitHub.
 
-### Option A — Render.com (free tier, easiest)
+### Option A — Docker Compose (recommended, works anywhere)
 
 1. Push this runtime project to **your own GitHub repo** (you need your own copy to deploy).
-2. On [render.com](https://render.com) → **New → Web Service** → connect your runtime repo.
-3. Render detects the `Dockerfile` automatically.
-4. Add environment variables:
-   - `ADVENTURE__GITHUB_REPO` = `your-name/my-adventure`
-   - `ADVENTURE__ALLOW_BRANCH_SELECTION` = `false` (or `true` for testing)
-5. Deploy. Done — share the URL.
+2. Copy `compose.yml`, set your adventure repo:
+   ```yaml
+   environment:
+     ADVENTURE_REPO: your-name/my-adventure
+     ADVENTURE_REPO_BRANCH: main      # or "draft" while testing
+   volumes:
+     - adventure-data:/data
+   ```
+3. `docker compose up -d` — the entrypoint downloads the repo tarball into the volume, then starts the runtime.
 
-### Option B — Fly.io (small free allowance)
+### Option B — Render.com (free tier)
+
+1. Connect your runtime repo, Render builds the Dockerfile automatically.
+2. Environment variables: `ADVENTURE_REPO=your-name/my-adventure`, `ADVENTURE_REPO_BRANCH=main`.
+3. (Optional) add a persistent disk mounted at `/data` so restarts skip re-downloading. Without a disk, every deploy re-downloads — which is exactly what you want for updates anyway.
+
+### Option C — Fly.io
 
 ```bash
-fly launch --image <your-registry>/gamebookruntime   # or deploy from the Dockerfile
-fly secrets set ADVENTURE__GITHUB_REPO=your-name/my-adventure
+fly launch            # detects the Dockerfile
+fly secrets set ADVENTURE_REPO=your-name/my-adventure ADVENTURE_REPO_BRANCH=main
 fly deploy
 ```
 
-### Option C — Azure Container Apps (free grant per subscription)
+### Option D — Azure Container Apps
 
 ```bash
-az containerapp up --name my-gamebook --image mcr.example/gamebookruntime \
-  --env-vars ADVENTURE__GITHUB_REPO=your-name/my-adventure
+az containerapp up --name my-gamebook --image <your-registry>/gamebookruntime \
+  --env-vars ADVENTURE_REPO=your-name/my-adventure ADVENTURE_REPO_BRANCH=main
 ```
 
-### Option D — Any Docker host (VPS, Raspberry Pi, home server)
+### Option E — Any Docker host (VPS, Raspberry Pi, home server)
 
 ```bash
 docker build -t gamebook .
 docker run -d -p 8080:8080 \
-  -e ADVENTURE__GITHUB_REPO=your-name/my-adventure \
+  -e ADVENTURE_REPO=your-name/my-adventure \
+  -v adventure-data:/data \
   gamebook
 ```
 
-## 3. (Optional) Allow branch selection for testing
+## 3. Versioning with branches
 
-Set `ADVENTURE__ALLOW_BRANCH_SELECTION=true`. The start screen then shows a branch dropdown fed by the GitHub API. Turn it off for the public release.
+Branch selection happens **at deployment**, not in the UI:
+
+- public release: `ADVENTURE_REPO_BRANCH=main`
+- testing a draft: set `ADVENTURE_REPO_BRANCH=draft` and redeploy (a second instance on another port/subdomain works well for parallel testing)
+- tags and commit SHAs work too — pin a release with `ADVENTURE_REPO_BRANCH=v1.0`
 
 ## 4. Update the adventure later
 
-Just push a new commit / restart the container — the runtime reloads the adventure at startup. There is deliberately **no API to modify the adventure** while running.
+Push new commits to GitHub, then redeploy/restart:
+
+- With no persistent volume (Render without disk, most PaaS): every restart downloads fresh. Done.
+- With a volume (compose/Fly): set `ADVENTURE_FORCE_DOWNLOAD=1` for one restart, or delete the volume contents. With `docker compose`, that's:
+  ```bash
+  ADVENTURE_FORCE_DOWNLOAD=1 docker compose up -d --force-recreate
+  ```
+
+There is deliberately **no API to modify the adventure** while running.
 
 ---
 

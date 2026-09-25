@@ -8,15 +8,13 @@
   // ---------- state ----------
   const state = {
     meta: null,          // { id, title, author, language, start, labels }
-    branches: [],        // branch names, empty when selection disabled
-    branch: null,        // chosen branch or null
     history: [],         // visited node keys — forward-only, used for saves
     diceLog: [],         // { node, value }
   };
 
   let customLabels = null;
 
-  const baseKey = () => `gamebook:${state.meta?.id ?? "?"}:branch:${state.branch ?? "default"}`;
+  const baseKey = () => `gamebook:${state.meta?.id ?? "?"}`;
 
   // ---------- theme ----------
   const THEME_KEY = "gamebook:theme";
@@ -158,28 +156,6 @@
       $(".btn-begin", tpl).addEventListener("click", () => { state.history = []; state.diceLog = []; gotoNode(state.meta.start ?? "start"); });
     }
 
-    if (state.branches.length > 1) {
-      const picker = $(".branch-picker", tpl);
-      picker.classList.remove("hidden");
-      $(".branch-label", tpl).textContent = t("branch");
-      $(".btn-branch-reload", tpl).textContent = t("reload");
-      const sel = $("#branch", tpl);
-      sel.innerHTML = "";
-      for (const b of state.branches) {
-        const opt = document.createElement("option");
-        opt.value = b; opt.textContent = b;
-        if (b === state.branch) opt.selected = true;
-        sel.appendChild(opt);
-      }
-      sel.addEventListener("change", async () => {
-        state.branch = sel.value || null;
-        state.meta = await api(`/api/adventure${state.branch ? `?branch=${encodeURIComponent(state.branch)}` : ""}`);
-        clearProgress(); state.history = [];
-        showStart();
-      });
-      $(".btn-branch-reload", tpl).addEventListener("click", async () => { await initBranches(); showStart(); });
-    }
-
     // saved games
     const saves = listSaves();
     const box = $(".saves", tpl);
@@ -210,8 +186,7 @@
   async function gotoNode(key, { refetch = false } = {}) {
     setLoading();
     try {
-      const q = state.branch ? `?branch=${encodeURIComponent(state.branch)}` : "";
-      const node = await api(`/api/node/${encodeURIComponent(key)}${q}`);
+      const node = await api(`/api/node/${encodeURIComponent(key)}`);
       if (refetch) {
         // restoring: rebuild history around the saved node
         // history already restored from save
@@ -285,7 +260,7 @@
     rollBtn.textContent = opt.dice.label ?? `🎲 ${t("roll")}`;
     rollBtn.addEventListener("click", async () => {
       rollBtn.disabled = true; input.disabled = true;
-      const res = await api(`/api/roll?sides=${sides}${state.branch ? `&branch=${encodeURIComponent(state.branch)}` : ""}`);
+      const res = await api(`/api/roll?sides=${sides}`);
       const resBox = $(".dice-result", block);
       resBox.classList.remove("hidden");
       $(".dice-value", resBox).textContent = `${t("yourRoll")}: ${res.value}`;
@@ -317,22 +292,11 @@
     return res.json();
   }
 
-  async function initBranches() {
-    try {
-      const info = await api("/api/branches");
-      state.branches = info.allowed ? info.branches : [];
-      if (state.branch && !state.branches.includes(state.branch)) state.branch = null;
-      if (!state.branch && state.branches.length) state.branch = state.branches[0];
-    } catch { state.branches = []; }
-  }
-
   async function boot() {
     initTheme();
     setLoading();
     try {
-      await initBranches();
-      const q = state.branch ? `?branch=${encodeURIComponent(state.branch)}` : "";
-      state.meta = await api(`/api/adventure${q}`);
+      state.meta = await api("/api/adventure");
       customLabels = state.meta.labels ?? null;
       showStart();
     } catch (e) { showError(e); }

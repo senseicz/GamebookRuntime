@@ -2,27 +2,24 @@ using GamebookRuntime;
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Services.AddHttpClient<GitHubAdventureSource>();
-builder.Services.AddOutputCache();
+builder.Services.AddSingleton<LocalAdventureSource>();
 
 var app = builder.Build();
 
-// Cache the adventure per branch so GitHub is hit once, not on every request.
-// The in-memory copy is read-only for the lifetime of the running instance.
-var cache = new Dictionary<string, Adventure>();
-var cacheLock = new object();
-
-async Task<Adventure> GetAdventureAsync(string? branch, CancellationToken ct)
+// The adventure is downloaded during deployment into the data directory
+// (see docker-entrypoint.sh); the runtime reads local files only and is
+// read-only for its entire lifetime.
+Adventure? adventure = null;
+try
 {
-    var source = app.Services.GetRequiredService<GitHubAdventureSource>();
-    var key = branch ?? source.DefaultBranch;
-    lock (cache)
-    {
-        if (cache.TryGetValue(key, out var cached)) return cached;
-    }
-    var adventure = await source.LoadAsync(branch, ct);
-    lock (cache) cache[key] = adventure;
-    return adventure;
+    adventure = app.Services.GetRequiredService<LocalAdventureSource>().LoadAsync(app.Lifetime.ApplicationStopping).Result;
+    app.Logger.LogInformation("Loaded adventure '{Title}' ({Id}) from {Path}",
+        adventure.Title, adventure.Id, app.Services.GetRequiredService<LocalAdventureSource>().FullPath);
+}
+catch (Exception ex)
+{
+    app.Logger.LogError(ex, "Failed to load adventure. Has the deployment step downloaded it into the data directory?");
+    if (app.Environment.IsProduction()) throw;
 }
 
 app.UseDefaultFiles();
@@ -30,32 +27,18 @@ app.UseStaticFiles();
 
 // ---------- API ----------
 
-// Adventure metadata (never exposes repo name or file path)
-app.MapGet("/api/adventure", async (string? branch, CancellationToken ct) =>
+// Adventure metadata (drives UI language via labels)
+app.MapGet("/api/adventure", () => Results.Ok(new
 {
-    var a = await GetAdventureAsync(branch, ct);
-    return Results.Ok(new
-    {
-        id = a.Id, title = a.Title, author = a.Author, language = a.Language,
-        start = a.Start, labels = a.Labels.Count > 0 ? a.Labels : null,
-    });
-});
+    id = adventure!.Id, title = adventure.Title, author = adventure.Author,
+    language = adventure.Language, start = adventure.Start,
+    labels = adventure.Labels.Count > 0 ? adventure.Labels : null,
+}));
 
-// Branch list — only when the author enabled branch selection at deploy time
-app.MapGet("/api/branches", async (CancellationToken ct) =>
+// A single node of the story, by key
+app.MapGet("/api/node/{key}", (string key) =>
 {
-    var source = app.Services.GetRequiredService<GitHubAdventureSource>();
-    if (!source.AllowBranchSelection)
-        return Results.Json(new { allowed = false, branches = Array.Empty<string>() }, statusCode: 200);
-    var branches = await source.ListBranchesAsync(ct);
-    return Results.Ok(new { allowed = true, branches });
-});
-
-// A single node of the story, by key, optionally from a chosen branch
-app.MapGet("/api/node/{key}", async (string key, string? branch, CancellationToken ct) =>
-{
-    var a = await GetAdventureAsync(branch, ct);
-    if (!a.Nodes.TryGetValue(key, out var node))
+    if (!adventure!.Nodes.TryGetValue(key, out var node))
         return Results.NotFound(new { error = $"Unknown step '{key}'" });
     return Results.Ok(new
     {
@@ -77,9 +60,9 @@ app.MapGet("/api/node/{key}", async (string key, string? branch, CancellationTok
     });
 });
 
-// Server-side dice roll. The client may also roll locally and pass ?value=1..6
-// (for readers rolling physical dice); the server clamps/rejects invalid values.
-app.MapGet("/api/roll", (int sides, string? branch) =>
+// Server-side dice roll. The client may also pass the result of the reader's
+// own physical die (the input field); both paths resolve the same outcomes.
+app.MapGet("/api/roll", (int sides) =>
 {
     if (sides < 2 || sides > 100) sides = 6;
     var value = Random.Shared.Next(1, sides + 1);
@@ -87,20 +70,5 @@ app.MapGet("/api/roll", (int sides, string? branch) =>
 });
 
 app.MapGet("/healthz", () => Results.Ok("ok"));
-
-// Fail fast at startup if the adventure cannot be loaded — a runtime without
-// a valid adventure should not pretend to work.
-var src = app.Services.GetRequiredService<GitHubAdventureSource>();
-try
-{
-    var a = await GetAdventureAsync(null, app.Lifetime.ApplicationStopping);
-    app.Logger.LogInformation("Loaded adventure '{Title}' ({Id}) from {Repo}@{Branch}",
-        a.Title, a.Id, src.Repo, src.DefaultBranch);
-}
-catch (Exception ex)
-{
-    app.Logger.LogError(ex, "Failed to load adventure from GitHub. Check ADVENTURE__GITHUB_REPO / branch / file path / token.");
-    if (app.Environment.IsProduction()) throw;
-}
 
 app.Run();
