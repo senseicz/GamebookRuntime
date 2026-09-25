@@ -3,7 +3,7 @@
   "use strict";
 
   const app = document.getElementById("app");
-  const $ = (sel, root = app) => root.querySelector(sel);
+  const $ = (sel, root = document) => root.querySelector(sel);
 
   // ---------- state ----------
   const state = {
