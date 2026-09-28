@@ -4,6 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Gamebook</title>
+<link rel="preload" href="styles.css" as="style">
+<link rel="preload" href="app.js" as="script">
 <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -16,6 +18,7 @@
     <div class="topbar"><button class="btn btn-icon btn-theme" title="theme"></button></div>
     <h1 class="title"></h1>
     <p class="author"></p>
+    <div class="intro hidden"></div>
     <button class="btn btn-primary btn-begin"></button>
     <div class="saves hidden">
       <h2 class="saves-title"></h2>

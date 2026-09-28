@@ -1,7 +1,8 @@
 {
   "nodes": {
     "river": {
-      "text": "## The Rolling Stone\n\nAt the riverbank sits a massive boulder blocking the old stepping stones. Carved into its face is a riddle: *\"Six paths I show, only chance decides. Let fate roll.\"*\n\nYou must attempt to push past the boulder — but the forest spirits demand a dice throw. You may let the spirits roll for you, or roll your own die and speak the number aloud.",
+      "text": "## The Rolling Stone\n\nAt the riverbank sits a massive boulder blocking the old stepping stones. Carved into its face is a riddle: *\"Six paths I show, only chance decides. Let fate roll.\"* You memorise the carved words before touching the stone.",
+      "grant": ["spirits-riddle"],
       "options": [
         {
           "text": "Attempt to move the boulder (dice decides your fate).",
@@ -29,7 +30,15 @@
       ]
     },
     "shrine": {
-      "text": "## The Shrine\n\nYou fill the lantern, strike a spark, and the flame catches — warm, golden, alive. At the shrine, the old keeper takes the lantern from your hands and hangs it above the door.\n\n*\"It was never about delivering the light,\"* she says. *\"It was about carrying it.\"*\n\n## 🎉 The End — you kept your promise.",
+      "text": "## The Shrine\n\nThe shrine door will not open for empty hands. Carved above the door: *\"Light must be carried, not merely kept.\"*\n\nThe lantern hangs cold at your belt. You need oil to wake the flame.",
+      "options": [
+        { "text": "Fill the lantern and light it.", "next": "shrine-lit", "requires": ["lantern-oil"] },
+        { "text": "Sit by the door until morning, empty-handed.", "next": "village-return" }
+      ]
+    },
+    "shrine-lit": {
+      "text": "## The Flame\n\nYou fill the lantern, strike a spark, and the flame catches — warm, golden, alive. At the shrine, the old keeper takes the lantern from your hands and hangs it above the door.\n\n*\"It was never about delivering the light,\"* she says. *\"It was about carrying it.\"*\n\n## 🎉 The End — you kept your promise.",
+      "grant": ["keepers-words"],
       "ending": true
     },
     "village-return": {

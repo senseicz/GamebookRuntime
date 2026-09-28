@@ -60,6 +60,7 @@ Schema:
   "author": "…",
   "language": "en",
   "start": "start",
+  "intro": "Optional prologue shown on the title screen (markdown).",
   "chapters": ["chapters/part2.json", "chapters/part3.json"],
   "labels": { "cs": { "begin": "Začít", "theEnd": "Konec", "save": "Uložit postup" } },
   "nodes": { … }
@@ -68,15 +69,42 @@ Schema:
 
 **Chapters (long adventures):** if the story is long, split nodes across several JSON files. The main file lists them under `"chapters"` (paths relative to the main file). Each chapter file contains only `nodes` (and optionally `labels`); all nodes are merged into one adventure when the runtime loads it. Node keys must be unique across all files. Chapters are merged once at startup — do not expect changes to be picked up while running. Validation runs across the *merged* adventure.
 
+**Inventory (items & knowledge):** optional per adventure. Enable with:
+
+```json
+"inventory": {
+  "enabled": true,
+  "title": "Inventory",
+  "hideUndiscovered": true,
+  "items": {
+    "lantern-oil": { "name": "Vial of lantern oil", "description": "One refill." },
+    "keepers-words": { "name": "The keeper's words", "description": "A remembered promise." }
+  }
+}
+```
+
+- `items` covers **both physical items and knowledge** the player gains (rumours, riddles, names, skills). It is a *list* — steps may require several at once.
+- **Node `grant` = what lies here or what you find out** (applied when the node is entered). **Option `grant` = what the player takes away from doing it** (applied when the option is chosen). Use node grants for discoveries, option grants for acquisitions — and prefer option grants, they keep the graph small.
+- Both can be mirrored with `remove` (node/option): something dropped, given away, seized or used up. When a move both gives and takes, the item leaves the bag first.
+- Options gate progress with `"requires": ["lantern-oil", …]` (all keys must be present) and `"requiresAny": ["a", "b"]` (at least one). A locked option shows a lock and what is missing; dice steps can be gated too.
+- Several options of the same node can grant *different* items and lead to the same next node — that is how you write "he answers exactly one question you ask".
+- The inventory panel is always visible while playing (fixed bar on phones, sidebar on wider screens); undiscovered entries show as `???` when `hideUndiscovered` is true.
+- Every `grant`/`remove`/`requires`/`requiresAny` key must exist in `items`, and those fields are only allowed when the inventory is enabled — the runtime validates this at startup and refuses to boot otherwise.
+- A dice step grants its `grant` when the reader rolls, not per outcome. When an outcome should change the reward, route the outcomes to different nodes that grant it.
+- Design guidance: grant items *just before or where* they matter; always provide an alternative path when a gated option could otherwise dead-end the player; keep the catalog small (5–15 entries) by merging related things into one entry.
+
+**Prologue (optional):** `"intro"` is prose for the title screen, above the start button, in the same markdown subset as node text — use it for a long opening instead of spending the first node on it. It is shown in its own scroll box, so length is safe. Omit it and the title screen stays title + author + button.
+
 **UI language:** the adventure file also drives the runtime UI (buttons like "Begin", "Save progress", "Roll the dice"). Provide a `"labels"` object keyed by language tag; any key you omit falls back to English. Available keys:
 
-`loading, begin, restart, restartQ, continue, save, savePrompt, saves, load, delete, branch, reload, roll, useValue, yourRoll, theEnd, error`
+`loading, intro, begin, restart, restartQ, continue, save, savePrompt, saves, load, delete, inventory, undiscovered, needsItems, needsAny, roll, useValue, yourRoll, theEnd, error`
 
 Hard requirements (the runtime validates these at startup and refuses to boot otherwise):
 - `id`, `title`, `start` present; `start` exists in `nodes`.
 - Every `next` and every dice outcome points to an existing node.
 - Non-ending nodes have ≥ 1 option; ending nodes set `"ending": true` (options not needed).
 - Dice outcomes cover every value 1..sides with no gaps.
+- Every inventory key used in `grant`/`remove`/`requires`/`requiresAny` exists in `items` (only when the inventory is enabled).
 - UTF-8 throughout — any language works.
 
 ### 6. Publish (hand these steps to the user)

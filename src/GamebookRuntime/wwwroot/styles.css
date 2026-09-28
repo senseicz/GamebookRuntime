@@ -11,7 +11,7 @@
   --accent: #e0b34e;
   --accent-contrast: #201806;
   --accent-2: #8f7ad6;
-  --radius: 12px;
+  --radius: 6px;
   --maxw: 46rem;
   font-size: 16px;
 }
@@ -45,6 +45,17 @@ body {
 
 .title { font-size: clamp(1.7rem, 5vw, 2.6rem); margin: 1.5rem 0 .25rem; text-align: center; letter-spacing: .5px; }
 .author { color: var(--muted); text-align: center; margin: 0 0 2rem; font-style: italic; }
+
+/* Prologue on the title screen: its own scroll box, so the start button stays reachable. */
+.intro {
+  max-height: min(46vh, 34rem); overflow-y: auto; overscroll-behavior: contain;
+  background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 1rem 1.15rem; margin: 0 0 1.25rem; font-size: .97rem; line-height: 1.6;
+}
+.intro > :first-child { margin-top: 0; }
+.intro > :last-child { margin-bottom: 0; }
+.intro h1, .intro h2, .intro h3 { font-size: 1.1rem; margin: 1rem 0 .4rem; }
+.intro img { max-width: 100%; border-radius: var(--radius); }
 
 .btn {
   display: block; width: 100%;
@@ -107,6 +118,41 @@ body {
 .save-info { display: flex; flex-direction: column; min-width: 0; }
 .save-meta { color: var(--muted); font-size: .85rem; }
 .save-actions { display: flex; gap: .4rem; flex-shrink: 0; }
+
+/* ---------- inventory (fixed, always visible without scrolling) ---------- */
+.has-inventory .app { padding-bottom: 9.5rem; } /* room for the mobile bar */
+#inv-panel {
+  position: fixed; z-index: 50;
+  left: 0; right: 0; bottom: 0;
+  background: var(--panel); border-top: 1px solid var(--border-strong);
+  padding: .6rem 1rem calc(.6rem + env(safe-area-inset-bottom));
+  box-shadow: 0 -4px 16px rgba(0,0,0,.25);
+}
+.inv-title { color: var(--muted); font-size: .8rem; text-transform: uppercase; letter-spacing: .08em; margin-bottom: .35rem; }
+.inv-list { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: .4rem; max-height: 6.5rem; overflow-y: auto; }
+.inv-item {
+  display: inline-flex; align-items: center; gap: .35rem;
+  background: var(--panel-2); border: 1px solid var(--border); border-radius: 6px;
+  padding: .25rem .7rem; font-size: .9rem; white-space: nowrap;
+}
+.inv-item .inv-desc { color: var(--muted); font-size: .8rem; margin-left: .25rem; }
+.inv-item.just-granted { border-color: var(--accent); }
+.inv-item.undiscovered { opacity: .55; }
+
+@media (min-width: 900px) {
+  /* tablet/desktop: right sidebar, own scroll, never overlaps the story */
+  .has-inventory .app { padding-bottom: 2rem; padding-right: 17rem; }
+  #inv-panel {
+    left: auto; bottom: auto; top: 0; right: 0;
+    width: 15rem; height: 100dvh; border-top: none; border-left: 1px solid var(--border-strong);
+    padding: 1rem; overflow-y: auto; box-shadow: none;
+  }
+  .inv-list { flex-direction: column; flex-wrap: nowrap; max-height: none; }
+  .inv-item { white-space: normal; }
+}
+.req-note { display: block; color: var(--muted); font-size: .82rem; }
+.btn-locked { opacity: .6; cursor: not-allowed; }
+.btn-locked:hover { border-color: var(--border-strong); }
 
 @media (min-width: 700px) { /* tablet/desktop: keep same layout, slightly larger text */
   :root { font-size: 17px; }

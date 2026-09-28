@@ -7,7 +7,7 @@
       "launchUrl": "https://localhost:5000",
       "applicationUrl": "https://localhost:5000",
       "environmentVariables": {
-        "ADVENTURE__GITHUB_REPO": "local:../../adventures/sample/adventure.json"
+        "ASPNETCORE_ENVIRONMENT": "Development"
       }
     }
   }

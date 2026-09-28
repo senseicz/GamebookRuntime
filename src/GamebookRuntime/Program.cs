@@ -1,6 +1,19 @@
 using GamebookRuntime;
+using Microsoft.Extensions.FileProviders;
 
-var builder = WebApplication.CreateBuilder(args);
+var builder = WebApplication.CreateBuilder(new WebApplicationOptions
+{
+    Args = args,
+    // Static assets (wwwroot) live next to the app binary — resolve them relative to
+    // the DLL, not the current working directory, so the app works from anywhere.
+    // In dev builds the binary sits at bin/<cfg>/<tfw>/, with the project (and wwwroot)
+    // three levels up; in Docker the publish output has wwwroot right beside the DLL.
+    ContentRootPath = AppContext.BaseDirectory,
+});
+var webRoot = Path.Combine(AppContext.BaseDirectory, "wwwroot");
+if (!Directory.Exists(webRoot))
+    webRoot = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "wwwroot"));
+var webRootFiles = new PhysicalFileProvider(webRoot);
 
 builder.Services.AddSingleton<LocalAdventureSource>();
 
@@ -22,8 +35,17 @@ catch (Exception ex)
     if (app.Environment.IsProduction()) throw;
 }
 
-app.UseDefaultFiles();
-app.UseStaticFiles();
+app.UseDefaultFiles(new DefaultFilesOptions { FileProvider = webRootFiles });
+app.UseStaticFiles(new StaticFileOptions { FileProvider = webRootFiles });
+
+// The HTML shell must never be cached — it loads app.js/styles.css by name,
+// and a stale cached shell is how old UI code ends up running against a new API.
+app.Use(async (context, next) =>
+{
+    if (context.Request.Path == "/" || context.Request.Path.StartsWithSegments("/index.html"))
+        context.Response.Headers.CacheControl = "no-cache";
+    await next();
+});
 
 // ---------- API ----------
 
@@ -32,7 +54,15 @@ app.MapGet("/api/adventure", () => Results.Ok(new
 {
     id = adventure!.Id, title = adventure.Title, author = adventure.Author,
     language = adventure.Language, start = adventure.Start,
+    intro = string.IsNullOrWhiteSpace(adventure.Intro) ? null : adventure.Intro,
     labels = adventure.Labels.Count > 0 ? adventure.Labels : null,
+    inventory = adventure.Inventory is { Enabled: true } ? new
+    {
+        title = adventure.Inventory.Title,
+        hideUndiscovered = adventure.Inventory.HideUndiscovered,
+        items = adventure.Inventory.Items.ToDictionary(
+            kv => kv.Key, kv => new { name = kv.Value.Name, description = kv.Value.Description }),
+    } : null,
 }));
 
 // A single node of the story, by key
@@ -46,10 +76,16 @@ app.MapGet("/api/node/{key}", (string key) =>
         text = node.Text,
         image = node.Image,
         ending = node.Ending,
+        grant = node.Grant ?? [],
+        remove = node.Remove ?? [],
         options = node.Options.Select(o => new
         {
             text = o.Text,
             next = o.Next,
+            requires = o.Requires ?? [],
+            requiresAny = o.RequiresAny ?? [],
+            grant = o.Grant ?? [],
+            remove = o.Remove ?? [],
             dice = o.Dice is null ? null : new
             {
                 sides = o.Dice.Sides,

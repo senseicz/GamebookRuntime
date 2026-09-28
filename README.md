@@ -54,12 +54,20 @@ The adventure is read from disk **once at startup** and held in memory; the runn
   "start": "first-node-key",
   "chapters": ["chapters/part2.json", "chapters/part3.json"],
   "labels": { "cs": { "begin": "Začít dobrodružství", "save": "Uložit postup" } },
+  "inventory": {
+    "enabled": true,
+    "items": {
+      "lantern-oil": { "name": "Vial of lantern oil", "description": "One refill." }
+    }
+  },
   "nodes": {
     "first-node": {
       "text": "Story text. **Markdown subset** supported: # headings, **bold**, *italic*, [links](https://…), ![images](https://…).",
+      "grant": ["lantern-oil"],
       "image": "https://example.com/cover.jpg",
       "options": [
         { "text": "Go left.", "next": "left-node" },
+        { "text": "Use the oil.", "next": "ritual", "requires": ["lantern-oil"] },
         { "text": "Roll for it.", "dice": {
             "sides": 6,
             "outcomes": [
@@ -80,18 +88,51 @@ The adventure is read from disk **once at startup** and held in memory; the runn
 
 Very long adventures can be split across multiple JSON files. In the main file, list them under `"chapters"` (paths relative to the main file). A chapter file contains only `nodes` (and optionally `labels`); all nodes are merged into one adventure at load time. Node keys must be unique across all files, and validation runs across the merged result. Chapters are read once at startup — the adventure is immutable while running.
 
+### Prologue (`intro`, optional)
+
+`"intro"` is prose shown on the title screen above the start button — for a long opening that
+should not have to be the first node. It uses the same markdown subset as node text and sits in
+its own scroll box, so even a three-page prologue cannot push the start button off the screen.
+Omit it and the title screen is title + author + button, as before.
+
 ### UI language (`labels`)
 
-The adventure file drives the runtime UI. Provide a `"labels"` object keyed by language tag (matching the adventure's `language`); any key you omit falls back to English. Available keys: `loading, begin, restart, restartQ, continue, save, savePrompt, saves, load, delete, branch, reload, roll, useValue, yourRoll, theEnd, error`.
+The adventure file drives the runtime UI. Provide a `"labels"` object keyed by language tag (matching the adventure's `language`); any key you omit falls back to English. Available keys: `loading, intro, begin, restart, restartQ, continue, save, savePrompt, saves, load, delete, branch, reload, inventory, undiscovered, needsItems, needsAny, roll, useValue, yourRoll, theEnd, error`.
 
 Rules enforced at startup (the runtime refuses to start on an invalid adventure):
 
 - every `next` / dice outcome must point to an existing node (across all chapters),
 - every non-ending node must have at least one option,
 - dice outcomes must cover every value `1..sides`,
-- node keys must be unique across the main file and all chapters.
+- node keys must be unique across the main file and all chapters,
+- every `grant` / `remove` / `requires` / `requiresAny` key must exist in the inventory catalog and are only allowed when `inventory.enabled` is true.
 
-See [`adventures/sample/adventure.json`](adventures/sample/adventure.json) for a complete example (*The Lost Lantern*, 8 nodes across two files, with a dice step and Czech UI labels).
+### Inventory (optional)
+
+When the adventure defines `"inventory": { "enabled": true, "items": { … } }`, the player sees an always-visible inventory panel (fixed bottom bar on phones, sidebar on desktop) listing physical items **and knowledge**. Progress (including inventory) is part of autosave and named saves. Omit the `inventory` block entirely and no inventory UI appears.
+
+| Where | Field | Meaning |
+|---|---|---|
+| node | `grant` | gained by **entering** the node — what lies here, what you find out |
+| node | `remove` | lost on entering — dropped, taken away, used up |
+| option | `grant` | gained by **choosing** the option — what you take away from doing it |
+| option | `remove` | lost by choosing it — given away, spent, seized |
+| option | `requires` | all listed keys must be owned |
+| option | `requiresAny` | **at least one** of the listed keys must be owned |
+
+An option is usable when every `requires` key is owned *and* at least one `requiresAny` key is owned; both lists may be combined. Locked options (including dice steps) show a lock and what is missing, and cannot be picked or rolled. When a move both gives and takes, the item leaves the bag first and the new one arrives after; a dice step gives its `grant` when the reader rolls, not per outcome — route outcomes to different nodes when an outcome should change the reward.
+
+```jsonc
+{
+  "text": "Ask the man in the dark coat what the light was for.",
+  "next": "shrine",
+  "grant": ["keepers-words"],   // you learned something
+  "remove": ["lantern-oil"],     // he kept the oil
+  "requiresAny": ["lantern-oil", "spirits-riddle"]
+}
+```
+
+See [`adventures/sample/adventure.json`](adventures/sample/adventure.json) for a complete example (*The Lost Lantern*, 9 nodes across two files, with a dice step, option rewards and Czech UI labels).
 
 ---
 

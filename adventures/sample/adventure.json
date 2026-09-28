@@ -4,7 +4,17 @@
   "author": "GamebookRuntime",
   "language": "cs",
   "start": "start",
+  "intro": "The village elder did not choose you. He had no one left to choose. The lantern went dark somewhere on the forest road, and since then the wolves have been bolder, the shrine keeper colder, and the river on the wrong side of the argument.\n\nYou have one night, one promise, and a road that splits in two.\n\n*What the light was for, nobody says out loud.*",
   "chapters": ["chapters/part2.json"],
+  "inventory": {
+    "enabled": true,
+	"hideUndiscovered": true,
+    "items": {
+      "lantern-oil": { "name": "Vial of lantern oil", "description": "One refill. Burn it wisely." },
+      "spirits-riddle": { "name": "The spirits' riddle", "description": "“Six paths I show, only chance decides.”" },
+      "keepers-words": { "name": "The keeper's words", "description": "“It was never about delivering the light.”" }
+    }
+  },
   "labels": {
     "cs": {
       "begin": "Začít dobrodružství",
@@ -17,6 +27,8 @@
       "load": "Načíst",
       "delete": "Smazat",
       "branch": "Verze příběhu (větev)",
+      "needsItems": "Chybí",
+      "needsAny": "Stačí jedno z",
       "roll": "Hodit kostkou",
       "useValue": "Použít hodnotu",
       "yourRoll": "Hodil jsi",
@@ -28,7 +40,8 @@
       "text": "# The Lost Lantern\n\nThe forest road swallowed the last light of the sun an hour ago. Your lantern — the one you promised the village elder you would deliver to the shrine on the hill — has gone dark.\n\nSomewhere ahead, a wolf howls. Somewhere behind, the village lights flicker. You hold the cold lantern tight and make a choice.",
       "options": [
         { "text": "Push on through the dark forest toward the shrine.", "next": "forest" },
-        { "text": "Turn back to the village and admit defeat.", "next": "village-return" }
+        { "text": "Turn back to the village and admit defeat.", "next": "village-return" },
+        { "text": "Take the long way round and pass the man in the dark coat.", "next": "wanderer" }
       ]
     },
     "forest": {
@@ -39,8 +52,18 @@
         { "text": "Head toward the warm glow.", "next": "camp" }
       ]
     },
+    "wanderer": {
+      "text": "## The One Who Knows\n\nA man in a dark coat is waiting where the path forks, as if he had been there before you. He does not give his name and does not say hello. He only says: *\"I know what the light was for. Ask me one thing — but one thing only.\"*",
+      "options": [
+        { "text": "\"What was the light for?\" — you take his answer with you.",
+          "next": "shrine", "grant": ["keepers-words"], "remove": ["lantern-oil"] },
+        { "text": "\"Who are you?\"", "next": "shrine", "remove": ["lantern-oil"] },
+        { "text": "Ask for nothing. Walk past him.", "next": "shrine" }
+      ]
+    },
     "camp": {
       "text": "## The Warm Glow\n\nThe glow belongs to a small campfire, and beside it sits a traveller roasting chestnuts. She waves you closer without a word.\n\n*\"The shrine keeper sent me,\"* she says, handing you a **small flask of lantern oil**. \"The wolves fear fire. Walk, don't run.\"\n\nWhen you look up from the flask, she is gone — only warm ashes remain.",
+      "grant": ["lantern-oil"],
       "options": [
         { "text": "Thank the fire and climb to the shrine.", "next": "shrine" },
         { "text": "Search the ashes for a clue.", "next": "river" }

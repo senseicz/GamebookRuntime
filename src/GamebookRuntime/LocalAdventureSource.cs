@@ -88,6 +88,23 @@ public sealed class LocalAdventureSource(IConfiguration config, ILogger<LocalAdv
     private static void Validate(Adventure a)
     {
         var problems = new List<string>();
+
+        // grant / remove / requires / requiresAny all reference the same catalog: every key
+        // must exist, and none of them are allowed unless the inventory is enabled.
+        // Only the wording of the problem differs, so it is checked in one place.
+        void CheckItems(string where, string what, List<string>? keys)
+        {
+            if (keys is not { Count: > 0 }) return;
+            if (a.Inventory is not { Enabled: true })
+            {
+                problems.Add($"{where} {what} items but the adventure has no enabled inventory");
+                return;
+            }
+            foreach (var k in keys)
+                if (!a.Inventory.Items.ContainsKey(k))
+                    problems.Add($"{where} {what} unknown item '{k}'");
+        }
+
         if (string.IsNullOrWhiteSpace(a.Id)) problems.Add("id is required");
         if (string.IsNullOrWhiteSpace(a.Title)) problems.Add("title is required");
         if (string.IsNullOrWhiteSpace(a.Start) || !a.Nodes.ContainsKey(a.Start))
@@ -97,8 +114,14 @@ public sealed class LocalAdventureSource(IConfiguration config, ILogger<LocalAdv
         {
             if (!node.Ending && node.Options.Count == 0)
                 problems.Add($"node '{key}' has no options and is not marked as ending");
+            CheckItems($"node '{key}'", "grants", node.Grant);
+            CheckItems($"node '{key}'", "removes", node.Remove);
             foreach (var opt in node.Options)
             {
+                CheckItems($"node '{key}' option", "grants", opt.Grant);
+                CheckItems($"node '{key}' option", "removes", opt.Remove);
+                CheckItems($"node '{key}' option", "requires", opt.Requires);
+                CheckItems($"node '{key}' option", "requiresAny", opt.RequiresAny);
                 if (opt.Dice is null)
                 {
                     if (!a.Nodes.ContainsKey(opt.Next))
