@@ -46,17 +46,6 @@ body {
 .title { font-size: clamp(1.7rem, 5vw, 2.6rem); margin: 1.5rem 0 .25rem; text-align: center; letter-spacing: .5px; }
 .author { color: var(--muted); text-align: center; margin: 0 0 2rem; font-style: italic; }
 
-/* Prologue on the title screen: its own scroll box, so the start button stays reachable. */
-.intro {
-  max-height: min(46vh, 34rem); overflow-y: auto; overscroll-behavior: contain;
-  background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius);
-  padding: 1rem 1.15rem; margin: 0 0 1.25rem; font-size: .97rem; line-height: 1.6;
-}
-.intro > :first-child { margin-top: 0; }
-.intro > :last-child { margin-bottom: 0; }
-.intro h1, .intro h2, .intro h3 { font-size: 1.1rem; margin: 1rem 0 .4rem; }
-.intro img { max-width: 100%; border-radius: var(--radius); }
-
 .btn {
   display: block; width: 100%;
   background: var(--panel-2); color: var(--text);
@@ -73,11 +62,13 @@ body {
 .btn-continue { border-color: var(--accent-2); }
 .btn-option::before { content: "› "; color: var(--accent); font-weight: 700; }
 
-.node-text { background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.1rem 1.2rem; }
-.node-text p { margin: 0 0 1em; }
-.node-text p:last-child { margin-bottom: 0; }
-.node-text h1, .node-text h2, .node-text h3 { line-height: 1.3; margin: 1em 0 .4em; }
-.node-text img { max-width: 100%; border-radius: var(--radius); display: block; margin: .5rem auto; }
+/* Story text: the prologue on the title screen and every game node share one style. */
+.node-text, .intro { background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.1rem 1.2rem; }
+.node-text p, .intro p { margin: 0 0 1em; }
+.node-text p:last-child, .intro p:last-child { margin-bottom: 0; }
+.node-text h1, .node-text h2, .node-text h3, .intro h1, .intro h2, .intro h3 { line-height: 1.3; margin: 1em 0 .4em; }
+.node-text img, .intro img { max-width: 100%; border-radius: var(--radius); display: block; margin: .5rem auto; }
+.intro { margin: 0 0 1.25rem; }
 .node-image img { max-width: 100%; width: 100%; border-radius: var(--radius); margin-bottom: 1rem; }
 .node-options { margin-top: 1.25rem; }
 

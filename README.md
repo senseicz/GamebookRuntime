@@ -91,8 +91,9 @@ Very long adventures can be split across multiple JSON files. In the main file, 
 ### Prologue (`intro`, optional)
 
 `"intro"` is prose shown on the title screen above the start button — for a long opening that
-should not have to be the first node. It uses the same markdown subset as node text and sits in
-its own scroll box, so even a three-page prologue cannot push the start button off the screen.
+should not have to be the first node. It uses the same markdown subset and renders in the same
+story panel as any other node, so the title page flows like the rest of the game — keep it short
+enough to leave the start button visible without scrolling.
 Omit it and the title screen is title + author + button, as before.
 
 ### UI language (`labels`)
@@ -165,9 +166,26 @@ Pick **one** option. The deployment step downloads your adventure from GitHub in
 
 ### Option B — Render.com (free tier)
 
-1. Connect your runtime repo, Render builds the Dockerfile automatically.
-2. Environment variables: `ADVENTURE_REPO=your-name/my-adventure`, `ADVENTURE_REPO_BRANCH=main`.
-3. (Optional) add a persistent disk mounted at `/data` so restarts skip re-downloading. Without a disk, every deploy re-downloads — which is exactly what you want for updates anyway.
+1. Connect your runtime repo as a **Web Service**. Render builds the Dockerfile automatically.
+2. Environment variables:
+   ```
+   ADVENTURE_REPO      = your-name/my-adventure
+   ADVENTURE_REPO_BRANCH = main
+   ADVENTURE_FILE_PATH = adventure.json          # or docs/my-adventure/adventure.json
+   ADVENTURE_TOKEN     = github_pat_…            # optional, see below
+   ```
+   `ADVENTURE_FILE_PATH` may be a subdirectory — chapter paths are resolved relative to it.
+3. **Do not add a persistent disk.** Without one the filesystem is ephemeral, so every deploy and
+   every cold start downloads the adventure fresh — that is what you want for updates anyway. A
+   disk would pin a stale copy and silently keep serving old story text.
+4. The entrypoint listens on `$PORT` when the host sets it (Render does), so the service needs no
+   extra configuration; keep Render's generated port setting as it is.
+5. `ADVENTURE_TOKEN` is optional for public repos, but the tarball endpoint is rate-limited per IP
+   (60/hour anonymously) and Render's outbound IPs are shared — a fine-grained token with read-only
+   `Contents` access on that one repo removes the risk of a failed cold start.
+
+Deploys are free-tier shaped: the service sleeps after inactivity and the first request after that
+re-downloads the adventure, so a cold start takes a few seconds longer.
 
 ### Option C — Fly.io
 

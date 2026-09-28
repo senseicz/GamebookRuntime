@@ -247,8 +247,7 @@
     $(".title", tpl).textContent = state.meta.title;
     $(".author", tpl).textContent = state.meta.author ? "— " + state.meta.author : "";
 
-    // Prologue from the adventure file (markdown, same subset as node text). It scrolls inside
-    // its own box, so a three-page introduction cannot push the start button off the screen.
+    // Prologue from the adventure file (markdown, same subset and same styling as node text).
     const intro = $(".intro", tpl);
     if (state.meta.intro) {
       intro.innerHTML = renderMarkdown(state.meta.intro);
@@ -447,6 +446,7 @@
     try {
       state.meta = await api("/api/adventure");
       customLabels = state.meta.labels ?? null;
+      document.title = state.meta.title ?? "Gamebook";
       renderInventory();
       showStart();
     } catch (e) { showError(e); }

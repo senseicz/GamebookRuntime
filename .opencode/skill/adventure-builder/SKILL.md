@@ -93,7 +93,7 @@ Schema:
 - A dice step grants its `grant` when the reader rolls, not per outcome. When an outcome should change the reward, route the outcomes to different nodes that grant it.
 - Design guidance: grant items *just before or where* they matter; always provide an alternative path when a gated option could otherwise dead-end the player; keep the catalog small (5–15 entries) by merging related things into one entry.
 
-**Prologue (optional):** `"intro"` is prose for the title screen, above the start button, in the same markdown subset as node text — use it for a long opening instead of spending the first node on it. It is shown in its own scroll box, so length is safe. Omit it and the title screen stays title + author + button.
+**Prologue (optional):** `"intro"` is prose for the title screen, above the start button, in the same markdown subset as node text — use it for a long opening instead of spending the first node on it. It renders in the same story panel as any other node, so keep it short enough to leave the start button visible without scrolling. Omit it and the title screen stays title + author + button.
 
 **UI language:** the adventure file also drives the runtime UI (buttons like "Begin", "Save progress", "Roll the dice"). Provide a `"labels"` object keyed by language tag; any key you omit falls back to English. Available keys:
 

@@ -9,6 +9,7 @@
 #   ADVENTURE_TOKEN           optional GitHub token (private repos / rate limits)
 #   ADVENTURE_DATA_DIR        where to place files (default: /data)
 #   ADVENTURE_FORCE_DOWNLOAD  "1" = re-download even if the adventure file already exists
+#   PORT                     listen port, e.g. injected by Render/Fly (default 8080)
 set -e
 
 DATA_DIR="${ADVENTURE_DATA_DIR:-/data}"
@@ -46,4 +47,6 @@ fi
 # Point the runtime at the data directory and start the app.
 export ADVENTURE__DATADIR="$DATA_DIR"
 export ADVENTURE__FILEPATH="$FILE_PATH"
+# PaaS hosts (Render, Fly, ...) inject PORT; ASPNETCORE_URLS from the image is only a fallback.
+export ASPNETCORE_URLS="http://+:${PORT:-8080}"
 exec dotnet GamebookRuntime.dll
