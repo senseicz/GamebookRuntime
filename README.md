@@ -13,6 +13,7 @@ A tiny, self-hostable **.NET 10** runtime for gamebook-style text adventures.
 - **Dark & light theme** — follows the system preference by default, switchable in the UI.
 - **Forward-only** — no undo: there is no back button; if the story allows backtracking, it's an explicit adventure option.
 - Responsive single-page UI (phone / tablet / desktop), no build step, no frontend dependencies.
+- **Utility rail** — save and theme sit in one always-visible corner, out of the story's way, and survive every screen change.
 
 ## Quick start (local dev)
 
@@ -30,6 +31,7 @@ Then open the printed URL (e.g. http://localhost:5000).
 |---|---|---|---|
 | `Adventure:DataDir` | `ADVENTURE__DATADIR` | `data` (`/data` in Docker) | Directory holding the downloaded adventure |
 | `Adventure:FilePath` | `ADVENTURE__FILEPATH` | `adventure.json` | Main adventure JSON, relative to the data dir |
+| `Debug:Enabled` | `DEBUG__ENABLED` | `false` | **Testers only** — show node keys and allow stepping back (see [Debug mode](#debug-mode-for-testers)) |
 
 The entrypoint script (`docker-entrypoint.sh`) handles the deployment-time download:
 
@@ -98,7 +100,7 @@ Omit it and the title screen is title + author + button, as before.
 
 ### UI language (`labels`)
 
-The adventure file drives the runtime UI. Provide a `"labels"` object keyed by language tag (matching the adventure's `language`); any key you omit falls back to English. Available keys: `loading, intro, begin, restart, restartQ, continue, save, savePrompt, saves, load, delete, branch, reload, inventory, undiscovered, needsItems, needsAny, roll, useValue, yourRoll, theEnd, error`.
+The adventure file drives the runtime UI. Provide a `"labels"` object keyed by language tag (matching the adventure's `language`); any key you omit falls back to English. Available keys: `loading, intro, begin, restart, restartQ, continue, save, savePrompt, saves, load, delete, branch, reload, inventory, undiscovered, needsItems, needsAny, noOptions, back, step, theme, roll, useValue, yourRoll, theEnd, error`.
 
 Rules enforced at startup (the runtime refuses to start on an invalid adventure):
 
@@ -106,7 +108,7 @@ Rules enforced at startup (the runtime refuses to start on an invalid adventure)
 - every non-ending node must have at least one option,
 - dice outcomes must cover every value `1..sides`,
 - node keys must be unique across the main file and all chapters,
-- every `grant` / `remove` / `requires` / `requiresAny` key must exist in the inventory catalog and are only allowed when `inventory.enabled` is true.
+- every `grant` / `remove` / `requires` / `requiresAny` / `lockedIfOwned` key must exist in the inventory catalog and are only allowed when `inventory.enabled` is true.
 
 ### Inventory (optional)
 
@@ -120,6 +122,7 @@ When the adventure defines `"inventory": { "enabled": true, "items": { … } }`,
 | option | `remove` | lost by choosing it — given away, spent, seized |
 | option | `requires` | all listed keys must be owned |
 | option | `requiresAny` | **at least one** of the listed keys must be owned |
+| option | `lockedIfOwned` | the option is **not offered at all** when **any** of the listed keys is owned |
 
 An option is usable when every `requires` key is owned *and* at least one `requiresAny` key is owned; both lists may be combined. Locked options (including dice steps) show a lock and what is missing, and cannot be picked or rolled. When a move both gives and takes, the item leaves the bag first and the new one arrives after; a dice step gives its `grant` when the reader rolls, not per outcome — route outcomes to different nodes when an outcome should change the reward.
 
@@ -133,7 +136,62 @@ An option is usable when every `requires` key is owned *and* at least one `requi
 }
 ```
 
-See [`adventures/sample/adventure.json`](adventures/sample/adventure.json) for a complete example (*The Lost Lantern*, 9 nodes across two files, with a dice step, option rewards and Czech UI labels).
+#### Hub steps (`lockedIfOwned`)
+
+`requires` answers *can the reader do this?* — it needs an item the reader has not got yet. `lockedIfOwned` answers the opposite: *is this step still on the table now that the reader has it?* On a hub node the reader can leave and return to, an acquisition step that stays enabled after the item is already in the bag is a bug: the reader buys a second vial of oil, or claims the same clue twice.
+
+`lockedIfOwned` **hides** such an option (it is not shown greyed out with a lock — the branch simply is not offered), so the hub list gets shorter as the reader progresses. It combines with `requires`/`requiresAny` and applies to dice steps too.
+
+```jsonc
+// market square — a hub the reader can come back to from anywhere
+{
+  "text": "The stallholder is counting coins by lamplight.",
+  "options": [
+    // shown until the reader owns the oil; then gone
+    { "text": "Buy the last vial of lantern oil.", "next": "market-bought",
+      "grant": ["lantern-oil"], "lockedIfOwned": ["lantern-oil"] },
+    { "text": "Climb the hill to the shrine.", "next": "shrine" }
+  ]
+}
+```
+
+Two rules for hub nodes: never let `lockedIfOwned` close **every** exit of a node (the runtime then shows a "nothing left to do here" note instead of a dead end — use `noOptions` in `labels` to word it), and do not use it to *consume* an item — that is what `remove` on the option is for.
+
+See [`adventures/sample/adventure.json`](adventures/sample/adventure.json) for a complete example (*The Lost Lantern*, 12 nodes across two files, with a dice step, option rewards, a returnable hub node with `lockedIfOwned` and Czech UI labels).
+
+---
+
+## Debug mode (for testers)
+
+Two things a reader cannot do in a normal game, enabled by one **server-side** setting:
+
+- **Node keys on screen** — every step shows its key (`step: market`), and every option shows
+  the key it leads to. A tester can report *"step `market` offers `buy-oil` after the shrine"*
+  instead of guessing where they were.
+- **Step back** — a `↩` button in the utility rail rewinds to the previous step: the node, the
+  inventory as it was there, and the dice roll that got you there (rolls made on the reverted move
+  are dropped). Progress rewinds as a whole; the adventure itself is untouched.
+
+Enable it on the deployment, not in the adventure file:
+
+```bash
+# docker compose
+DEBUG__ENABLED: "true"
+# Render / Fly / any host
+DEBUG__ENABLED=true
+# local dev
+dotnet run -- --Adventure:DataDir ../../adventures/sample --Debug:Enabled true
+```
+
+**Why a player cannot switch it on:** the flag is read from the runtime's own configuration at
+startup, sent to the browser as `debug.enabled` in `/api/adventure`, and the page only *mirrors*
+what the server said. It is not part of `adventure.json`, it is not read from `localStorage`, and
+there is no UI switch — a production deployment that does not set `DEBUG__ENABLED` sends
+`debug.enabled: false` and the key display and back button never exist in the page. (Anyone can
+of course edit their own browser's DOM; that changes nothing on the server — the runtime is
+read-only, and stepping back only rewinds the reader's own local progress.) The runtime logs a
+warning at startup when debug mode is on, so it is visible in the deploy log if it was left on by
+accident.
 
 ---
 

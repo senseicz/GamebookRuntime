@@ -89,7 +89,7 @@ public sealed class LocalAdventureSource(IConfiguration config, ILogger<LocalAdv
     {
         var problems = new List<string>();
 
-        // grant / remove / requires / requiresAny all reference the same catalog: every key
+        // grant / remove / requires / requiresAny / lockedIfOwned all reference the same catalog: every key
         // must exist, and none of them are allowed unless the inventory is enabled.
         // Only the wording of the problem differs, so it is checked in one place.
         void CheckItems(string where, string what, List<string>? keys)
@@ -122,6 +122,7 @@ public sealed class LocalAdventureSource(IConfiguration config, ILogger<LocalAdv
                 CheckItems($"node '{key}' option", "removes", opt.Remove);
                 CheckItems($"node '{key}' option", "requires", opt.Requires);
                 CheckItems($"node '{key}' option", "requiresAny", opt.RequiresAny);
+                CheckItems($"node '{key}' option", "locks when owned", opt.LockedIfOwned);
                 if (opt.Dice is null)
                 {
                     if (!a.Nodes.ContainsKey(opt.Next))

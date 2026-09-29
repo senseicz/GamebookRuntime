@@ -71,6 +71,10 @@ public sealed class AdventureOption
     public List<string>? Requires { get; set; }
     /// <summary>Item/knowledge keys of which the player must have at least one. Combined with Requires, both must hold.</summary>
     public List<string>? RequiresAny { get; set; }
+    /// <summary>Item/knowledge keys that close this option off: when the player owns ANY of them the option
+    /// is not offered at all (hidden, not locked). For hub steps the player can return to — "buy the vial of
+    /// oil" must disappear once the oil is in the bag. Requires inventory to be enabled.</summary>
+    public List<string>? LockedIfOwned { get; set; }
     /// <summary>Item/knowledge keys granted when this option is chosen — what the player takes away from doing it. Requires inventory to be enabled.</summary>
     public List<string>? Grant { get; set; }
     /// <summary>Item/knowledge keys lost when this option is chosen (given away, spent, seized). Requires inventory to be enabled.</summary>

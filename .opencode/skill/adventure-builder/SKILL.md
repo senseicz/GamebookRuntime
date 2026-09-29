@@ -87,9 +87,10 @@ Schema:
 - **Node `grant` = what lies here or what you find out** (applied when the node is entered). **Option `grant` = what the player takes away from doing it** (applied when the option is chosen). Use node grants for discoveries, option grants for acquisitions — and prefer option grants, they keep the graph small.
 - Both can be mirrored with `remove` (node/option): something dropped, given away, seized or used up. When a move both gives and takes, the item leaves the bag first.
 - Options gate progress with `"requires": ["lantern-oil", …]` (all keys must be present) and `"requiresAny": ["a", "b"]` (at least one). A locked option shows a lock and what is missing; dice steps can be gated too.
+- `"lockedIfOwned": ["lantern-oil"]` is the mirror image: the option is **hidden** (not locked) as soon as the reader owns any of those keys. Use it for **hub nodes the reader can leave and return to** — once the oil is in the bag, the "buy a vial of oil" step must not be offered again, or the reader buys a second one. It shortens the hub list as the run progresses. Never let it close every exit of a node, and do not use it to consume an item (that is `remove`).
 - Several options of the same node can grant *different* items and lead to the same next node — that is how you write "he answers exactly one question you ask".
 - The inventory panel is always visible while playing (fixed bar on phones, sidebar on wider screens); undiscovered entries show as `???` when `hideUndiscovered` is true.
-- Every `grant`/`remove`/`requires`/`requiresAny` key must exist in `items`, and those fields are only allowed when the inventory is enabled — the runtime validates this at startup and refuses to boot otherwise.
+- Every `grant`/`remove`/`requires`/`requiresAny`/`lockedIfOwned` key must exist in `items`, and those fields are only allowed when the inventory is enabled — the runtime validates this at startup and refuses to boot otherwise.
 - A dice step grants its `grant` when the reader rolls, not per outcome. When an outcome should change the reward, route the outcomes to different nodes that grant it.
 - Design guidance: grant items *just before or where* they matter; always provide an alternative path when a gated option could otherwise dead-end the player; keep the catalog small (5–15 entries) by merging related things into one entry.
 
@@ -97,14 +98,14 @@ Schema:
 
 **UI language:** the adventure file also drives the runtime UI (buttons like "Begin", "Save progress", "Roll the dice"). Provide a `"labels"` object keyed by language tag; any key you omit falls back to English. Available keys:
 
-`loading, intro, begin, restart, restartQ, continue, save, savePrompt, saves, load, delete, inventory, undiscovered, needsItems, needsAny, roll, useValue, yourRoll, theEnd, error`
+`loading, intro, begin, restart, restartQ, continue, save, savePrompt, saves, load, delete, inventory, undiscovered, needsItems, needsAny, noOptions, back, step, theme, roll, useValue, yourRoll, theEnd, error` (`noOptions` is shown when `lockedIfOwned` happens to close every option of a node; `back` and `step` only appear in the runtime's debug mode, which the *operator* turns on with `DEBUG__ENABLED` — not something the adventure file can enable)
 
 Hard requirements (the runtime validates these at startup and refuses to boot otherwise):
 - `id`, `title`, `start` present; `start` exists in `nodes`.
 - Every `next` and every dice outcome points to an existing node.
 - Non-ending nodes have ≥ 1 option; ending nodes set `"ending": true` (options not needed).
 - Dice outcomes cover every value 1..sides with no gaps.
-- Every inventory key used in `grant`/`remove`/`requires`/`requiresAny` exists in `items` (only when the inventory is enabled).
+- Every inventory key used in `grant`/`remove`/`requires`/`requiresAny`/`lockedIfOwned` exists in `items` (only when the inventory is enabled).
 - UTF-8 throughout — any language works.
 
 ### 6. Publish (hand these steps to the user)

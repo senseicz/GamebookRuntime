@@ -29,6 +29,10 @@
       "branch": "Verze příběhu (větev)",
       "needsItems": "Chybí",
       "needsAny": "Stačí jedno z",
+      "noOptions": "Tady už pro tebe nic není.",
+      "back": "Odejít o krok zpět (ladicí režim)",
+      "step": "krok",
+      "theme": "Přepnout světlý a tmavý motiv",
       "roll": "Hodit kostkou",
       "useValue": "Použít hodnotu",
       "yourRoll": "Hodil jsi",
@@ -49,7 +53,8 @@
       "image": "https://images.unsplash.com/photo-1419242902214-272b3f66ee7a?w=900&q=60",
       "options": [
         { "text": "Follow the sound of running water.", "next": "river" },
-        { "text": "Head toward the warm glow.", "next": "camp" }
+        { "text": "Head toward the warm glow.", "next": "camp" },
+        { "text": "Slip back to the village market square.", "next": "market" }
       ]
     },
     "wanderer": {

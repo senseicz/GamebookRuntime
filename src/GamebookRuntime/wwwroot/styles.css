@@ -37,7 +37,7 @@ body {
   line-height: 1.65;
   min-height: 100dvh;
 }
-.app { max-width: var(--maxw); margin: 0 auto; padding: 1.25rem 1rem calc(2rem + env(safe-area-inset-bottom)); }
+.app { max-width: var(--maxw); margin: 0 auto; padding: 2.5rem 1rem calc(2rem + env(safe-area-inset-bottom)); } /* top room for the utility rail */
 .loading { color: var(--muted); text-align: center; margin-top: 30vh; }
 
 .screen { animation: fadein .35s ease; }
@@ -94,10 +94,23 @@ body {
 }
 
 .node-end { margin-top: 1.5rem; text-align: center; color: var(--muted); font-style: italic; }
-.topbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: .75rem; }
-.topbar .btn { width: auto; display: inline-block; padding: .45rem .8rem; font-size: .9rem; margin: 0; }
 
-.btn-icon { width: 2.6rem; text-align: center; font-size: 1.1rem; }
+/* Utility rail: save + theme, always on screen. Fixed, so it survives every
+   re-render and never scrolls away with the story; pinned to the top corner so
+   the story text keeps the prime top position. */
+.util-rail {
+  position: fixed; z-index: 60;
+  top: calc(.3rem + env(safe-area-inset-top)); right: .4rem;
+  display: flex; gap: .35rem;
+  opacity: .8; transition: opacity .15s ease;
+}
+.util-rail:hover, .util-rail:focus-within { opacity: 1; }
+.util-rail .btn { margin: 0; background: var(--panel-2); box-shadow: 0 2px 10px rgba(0,0,0,.22); }
+/* phones: the story fills the width, so reserve just enough top padding to keep
+   the first panel clear of the rail instead of letting it overlap the corner */
+@media (max-width: 899px) { .app { padding-top: 2.8rem; } }
+
+.btn-icon { width: 2.35rem; min-height: 2.35rem; height: 2.35rem; padding: 0; text-align: center; font-size: 1.05rem; line-height: 1; }
 .btn-small { width: auto; padding: .4rem .8rem; font-size: .9rem; margin: 0; min-height: 38px; }
 .saves { margin-top: 2rem; }
 .saves-title { font-size: 1.1rem; color: var(--muted); margin: 0 0 .5rem; }
@@ -138,10 +151,26 @@ body {
     width: 15rem; height: 100dvh; border-top: none; border-left: 1px solid var(--border-strong);
     padding: 1rem; overflow-y: auto; box-shadow: none;
   }
+  /* the sidebar owns the right edge — keep the rail to the left of it */
+  .has-inventory .util-rail { right: calc(15rem + .5rem); }
   .inv-list { flex-direction: column; flex-wrap: nowrap; max-height: none; }
   .inv-item { white-space: normal; }
 }
 .req-note { display: block; color: var(--muted); font-size: .82rem; }
+.node-empty { margin-top: 1.25rem; text-align: center; font-style: italic; }
+
+/* ---------- debug mode (testers: Debug:Enabled on the server) ---------- */
+.debug-step {
+  display: inline-block; margin-bottom: .5rem; padding: .15rem .5rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: .8rem; color: var(--muted);
+  background: var(--panel-2); border: 1px dashed var(--border-strong); border-radius: 4px;
+}
+.debug-target {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: .8rem; color: var(--muted); opacity: .85;
+}
+.util-rail .btn:disabled { opacity: .4; cursor: not-allowed; }
 .btn-locked { opacity: .6; cursor: not-allowed; }
 .btn-locked:hover { border-color: var(--border-strong); }
 

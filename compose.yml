@@ -19,6 +19,8 @@ services:
       ADVENTURE_FILE_PATH: adventure.json
       # ADVENTURE_TOKEN: ghp_xxx            # only for private repos
       # ADVENTURE_FORCE_DOWNLOAD: "1"       # force re-download on start
+      # --- testers only: node keys on screen + "step back" ---
+      # DEBUG__ENABLED: "true"             # server-side switch, keep OFF in production
     volumes:
       - adventure-data:/data
     restart: unless-stopped

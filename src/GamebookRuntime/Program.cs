@@ -19,6 +19,15 @@ builder.Services.AddSingleton<LocalAdventureSource>();
 
 var app = builder.Build();
 
+// Debug mode (testers) is a *server* setting on purpose: the browser is told
+// whether it is on, it never decides. Deployments where DEBUG__ENABLED is not
+// set (production) send debug.enabled = false, and nothing the reader does in
+// the page can turn it on — the flag never travels through localStorage and is
+// not part of the adventure file.
+var debugEnabled = app.Configuration.GetValue("Debug:Enabled", false);
+if (debugEnabled)
+    app.Logger.LogWarning("Debug mode is ON: node keys are shown and stepping back is allowed. Do not enable it in production.");
+
 // The adventure is downloaded during deployment into the data directory
 // (see docker-entrypoint.sh); the runtime reads local files only and is
 // read-only for its entire lifetime.
@@ -56,6 +65,7 @@ app.MapGet("/api/adventure", () => Results.Ok(new
     language = adventure.Language, start = adventure.Start,
     intro = string.IsNullOrWhiteSpace(adventure.Intro) ? null : adventure.Intro,
     labels = adventure.Labels.Count > 0 ? adventure.Labels : null,
+    debug = new { enabled = debugEnabled },
     inventory = adventure.Inventory is { Enabled: true } ? new
     {
         title = adventure.Inventory.Title,
@@ -84,6 +94,7 @@ app.MapGet("/api/node/{key}", (string key) =>
             next = o.Next,
             requires = o.Requires ?? [],
             requiresAny = o.RequiresAny ?? [],
+            lockedIfOwned = o.LockedIfOwned ?? [],
             grant = o.Grant ?? [],
             remove = o.Remove ?? [],
             dice = o.Dice is null ? null : new

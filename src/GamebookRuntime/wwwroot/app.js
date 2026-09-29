@@ -7,8 +7,9 @@
 
   // ---------- state ----------
   const state = {
-    meta: null,          // { id, title, author, language, start, labels, inventory }
+    meta: null,          // { id, title, author, language, start, labels, inventory, debug }
     history: [],         // visited node keys — forward-only, used for saves
+    trail: [],           // per-step snapshot { key, inventory, diceCount } — backs debug "step back"
     diceLog: [],         // { node, value }
     inventory: [],       // granted item/knowledge keys (in discovery order)
     justGranted: [],     // keys granted on the current node, highlighted once
@@ -18,6 +19,9 @@
 
   const inventoryDef = () => state.meta?.inventory ?? null;
   const inventoryEnabled = () => !!inventoryDef();
+  // Debug mode is decided by the server (Debug:Enabled) and only mirrored here:
+  // node keys on screen, and "step back" instead of forward-only.
+  const debugOn = () => !!state.meta?.debug?.enabled;
 
   const baseKey = () => `gamebook:${state.meta?.id ?? "?"}`;
 
@@ -60,7 +64,7 @@
 
   function saveGame(name) {
     const saves = listSaves().filter((s) => s.name !== name);
-    saves.unshift({ name, node: state.history[state.history.length - 1], history: [...state.history], diceLog: [...state.diceLog], savedAt: Date.now() });
+    saves.unshift({ name, node: state.history[state.history.length - 1], history: [...state.history], trail: trailSnapshot(), diceLog: [...state.diceLog], inventory: [...state.inventory], savedAt: Date.now() });
     writeSaves(saves);
   }
 
@@ -74,23 +78,46 @@
     try { localStorage.removeItem(`${baseKey()}:autosave`); } catch {}
   }
 
+  // ---------- utility rail (save + theme + debug back) ----------
+  // The rail is static markup outside #app, so the utilities stay put across
+  // every screen render. It is wired once here; only its labels and the save /
+  // back buttons' visibility are refreshed.
+  function initUtilRail() {
+    $("#btn-save")?.addEventListener("click", () => {
+      const name = prompt(t("savePrompt"), `${state.meta?.title ?? ""} · ${state.history.length}`);
+      if (!name) return;
+      saveGame(name);
+    });
+    $("#btn-back")?.addEventListener("click", () => stepBack());
+  }
+
+  function updateUtilRail() {
+    const save = $("#btn-save");
+    const theme = $("#btn-theme");
+    const back = $("#btn-back");
+    if (save) {
+      save.textContent = "💾";
+      save.title = save.setAttribute("aria-label", t("save"));
+      save.classList.toggle("hidden", state.history.length === 0);
+    }
+    if (back) {
+      back.textContent = "↩";
+      back.title = back.setAttribute("aria-label", t("back"));
+      // only testers get it, and never on the very first step
+      back.classList.toggle("hidden", !debugOn());
+      back.disabled = state.trail.length < 2;
+    }
+    if (theme) {
+      theme.title = theme.setAttribute("aria-label", t("theme"));
+    }
+    updateThemeIcons();
+  }
+
   // ---------- autosave (continue where you left off) ----------
   function saveProgress() {
     try {
-      localStorage.setItem(`${baseKey()}:autosave`, JSON.stringify({ history: state.history, diceLog: state.diceLog, savedAt: Date.now() }));
-    } catch { /* storage unavailable — play without saving */ }
-  }
-  function loadAutosave() {
-    try {
-      const p = JSON.parse(localStorage.getItem(`${baseKey()}:autosave`) ?? "null");
-      return Array.isArray(p?.history) ? p : null;
-    } catch { return null; }
-  }
-
-  function saveProgress() {
-    try {
       localStorage.setItem(`${baseKey()}:autosave`, JSON.stringify({
-        history: state.history, diceLog: state.diceLog, inventory: state.inventory, savedAt: Date.now(),
+        history: state.history, trail: trailSnapshot(), diceLog: state.diceLog, inventory: state.inventory, savedAt: Date.now(),
       }));
     } catch { /* storage unavailable — play without saving */ }
   }
@@ -101,11 +128,44 @@
     } catch { return null; }
   }
 
+  // ---------- step trail (debug mode) ----------
+  // One snapshot per visited node: the node key, the inventory as it was there,
+  // and how many dice rolls had been made. Stepping back rewinds to the previous
+  // snapshot, so the bag rolls back too instead of keeping items the reader no
+  // longer "has" in the story. Saves keep the trail, so it survives a reload;
+  // a save written by an older runtime falls back to a single snapshot and
+  // simply cannot step back.
+  function trailSnapshot() {
+    return state.trail.map((s) => ({ key: s.key, inventory: [...s.inventory], diceCount: s.diceCount }));
+  }
+  function restoreTrail(savedTrail, node, inventory) {
+    const t = Array.isArray(savedTrail) && savedTrail.length ? savedTrail : null;
+    state.trail = t
+      ? t.map((s) => ({ key: s.key, inventory: [...(s.inventory ?? [])], diceCount: s.diceCount ?? 0 }))
+      : [{ key: node, inventory: [...inventory], diceCount: 0 }];
+  }
+
+  // Debug only: undo the last move completely — the node we came from, the bag
+  // as it was, and the roll (if any) that got us here. Progress is a plain
+  // rewind of local state; the adventure itself is immutable on the server.
+  async function stepBack() {
+    if (!debugOn() || state.trail.length < 2) return;
+    state.trail.pop();
+    const prev = state.trail[state.trail.length - 1];
+    state.history.pop();
+    state.inventory = [...prev.inventory];
+    state.diceLog.length = Math.min(state.diceLog.length, prev.diceCount);
+    state.justGranted = [];
+    await gotoNode(prev.key, { push: false });
+  }
+
   // ---------- inventory ----------
   // Items/knowledge are granted when a node is entered (node.grant) or when an
   // option is chosen (option.grant — what the player takes away from doing it),
   // and lost the same two ways (remove). Options are gated by requires (all of)
-  // and requiresAny (at least one). Requires inventory to be enabled.
+  // and requiresAny (at least one). lockedIfOwned goes the other way: the option
+  // is not offered at all once the player owns any of those keys — the hub step
+  // you can no longer take. Requires inventory to be enabled.
 
   function grantItems(keys, { highlight = false } = {}) {
     if (!inventoryEnabled()) return;
@@ -150,6 +210,14 @@
     if (any.length && missingAny.length === any.length)
       notes.push(`${t("needsAny")}: ${any.map(itemName).join(", ")}`);
     return notes;
+  }
+
+  // An option that is not offered at all: the player already owns one of its
+  // lockedIfOwned keys. Hidden rather than locked — a hub must not advertise the
+  // "buy the vial of oil" step to someone who is already carrying the oil.
+  function isHidden(opt) {
+    if (!inventoryEnabled()) return false;
+    return (opt.lockedIfOwned ?? []).some((k) => state.inventory.includes(k));
   }
 
   function renderInventory() {
@@ -203,6 +271,10 @@
     undiscovered: "Not discovered yet",
     needsItems: "Requires",
     needsAny: "Requires any of",
+    noOptions: "There is nothing left for you to do here.",
+    back: "Step back (debug mode)",
+    step: "step",
+    theme: "Switch between light and dark",
     roll: "Roll the dice",
     useValue: "Use value",
     yourRoll: "You rolled",
@@ -265,16 +337,17 @@
         const p = loadAutosave();
         state.history = p.history; state.diceLog = p.diceLog ?? [];
         state.inventory = p.inventory ?? []; state.justGranted = [];
+        restoreTrail(p.trail, p.history[p.history.length - 1], state.inventory);
         renderInventory();
-        gotoNode(state.history[state.history.length - 1], { refetch: true });
+        gotoNode(state.history[state.history.length - 1], { push: false });
       });
       tpl.querySelector(".start").prepend(cont);
       $(".btn-begin", tpl).classList.remove("btn-primary");
       $(".btn-begin", tpl).classList.add("btn-secondary");
       $(".btn-begin", tpl).textContent = t("restart");
-      $(".btn-begin", tpl).addEventListener("click", () => { clearProgress(); state.history = []; state.diceLog = []; state.inventory = []; state.justGranted = []; renderInventory(); gotoNode(state.meta.start ?? "start"); });
+      $(".btn-begin", tpl).addEventListener("click", resetAndStart);
     } else {
-      $(".btn-begin", tpl).addEventListener("click", () => { state.history = []; state.diceLog = []; state.inventory = []; state.justGranted = []; renderInventory(); gotoNode(state.meta.start ?? "start"); });
+      $(".btn-begin", tpl).addEventListener("click", resetAndStart);
     }
 
     // saved games
@@ -288,6 +361,13 @@
     }
   }
 
+  function resetAndStart() {
+    clearProgress();
+    state.history = []; state.trail = []; state.diceLog = []; state.inventory = []; state.justGranted = [];
+    renderInventory();
+    gotoNode(state.meta.start ?? "start");
+  }
+
   function saveItem(s) {
     const item = $("#tpl-save-item").content.cloneNode(true);
     $(".save-name", item).textContent = s.name;
@@ -298,27 +378,28 @@
       state.history = [...s.history]; state.diceLog = s.diceLog ?? [];
       state.inventory = s.inventory ?? [];
       state.justGranted = [];
+      restoreTrail(s.trail, s.node, state.inventory);
       saveProgress();
       renderInventory();
-      gotoNode(s.node, { refetch: true });
+      gotoNode(s.node, { push: false });
     });
     $(".btn-delete", item).textContent = t("delete");
     $(".btn-delete", item).addEventListener("click", () => { deleteSave(s.name); showStart(); });
     return item;
   }
 
-  async function gotoNode(key, { refetch = false } = {}) {
+  // push: false when re-rendering a node we are already on (restoring a save,
+  // or stepping back in debug mode) — history and the trail stay as they are.
+  async function gotoNode(key, { push = true } = {}) {
     setLoading();
     try {
       const node = await api(`/api/node/${encodeURIComponent(key)}`);
-      if (refetch) {
-        // restoring: history/inventory already restored from the save
-      } else {
-        state.history.push(key);
-      }
+      if (push) state.history.push(key);
       removeItems(node.remove);
-      grantItems(node.grant, { highlight: true });
+      grantItems(node.grant, { highlight: push });
+      if (push) state.trail.push({ key, inventory: [...state.inventory], diceCount: state.diceLog.length });
       saveProgress();
+      updateUtilRail();
       showNode(node);
     } catch (e) { showError(e); }
   }
@@ -326,16 +407,14 @@
   function showNode(node) {
     const tpl = $("#tpl-node").content.cloneNode(true);
 
-    // top bar: save + theme. No back button — adventures are forward-only.
-    const saveBtn = $(".btn-save", tpl);
-    saveBtn.textContent = t("save");
-    saveBtn.addEventListener("click", () => {
-      const name = prompt(t("savePrompt"), `${state.meta.title} · ${state.history.length}`);
-      if (!name) return;
-      const saves = listSaves().filter((s) => s.name !== name);
-      saves.unshift({ name, node: state.history[state.history.length - 1], history: [...state.history], diceLog: [...state.diceLog], inventory: [...state.inventory], savedAt: Date.now() });
-      writeSaves(saves);
-    });
+    // Debug mode: the node key on screen, so a tester can report "step
+    // `market` says the wrong thing" instead of guessing where they were.
+    if (debugOn()) {
+      const chip = document.createElement("div");
+      chip.className = "debug-step";
+      chip.textContent = `${t("step")}: ${node.key}`;
+      tpl.querySelector(".node").prepend(chip);
+    }
 
     if (node.image) {
       const wrap = $(".node-image", tpl);
@@ -346,23 +425,37 @@
     $(".node-text", tpl).innerHTML = renderMarkdown(node.text || "");
 
     const opts = $(".node-options", tpl);
+    let shown = 0;
     for (const opt of node.options ?? []) {
+      if (isHidden(opt)) continue;
+      shown++;
       const notes = lockNotes(opt);
       if (opt.dice) {
         opts.appendChild(buildDiceBlock(opt, notes));
       } else {
         const btn = $("#tpl-option").content.cloneNode(true).querySelector("button");
+        // where this option leads — the other half of a tester's report
+        const target = debugOn() ? ` <span class="debug-target">${esc(opt.next)}</span>` : "";
         if (notes.length) {
           // option is gated: player lacks required items/knowledge
           btn.disabled = true;
           btn.classList.add("btn-locked");
-          btn.innerHTML = `🔒 ${esc(opt.text)} <span class="req-note">${esc(notes.join(" · "))}</span>`;
+          btn.innerHTML = `🔒 ${esc(opt.text)}${target} <span class="req-note">${esc(notes.join(" · "))}</span>`;
         } else {
-          btn.textContent = opt.text;
+          btn.innerHTML = `${esc(opt.text)}${target}`;
           btn.addEventListener("click", () => { applyOption(opt); gotoNode(opt.next); });
         }
         opts.appendChild(btn);
       }
+    }
+
+    // lockedIfOwned can take every option away; say so rather than leaving the
+    // reader on a node with no way forward.
+    if (shown === 0 && !node.ending) {
+      const empty = document.createElement("div");
+      empty.className = "req-note node-empty";
+      empty.textContent = t("noOptions");
+      opts.appendChild(empty);
     }
 
     if (node.ending) {
@@ -447,6 +540,8 @@
       state.meta = await api("/api/adventure");
       customLabels = state.meta.labels ?? null;
       document.title = state.meta.title ?? "Gamebook";
+      initUtilRail();
+      updateUtilRail();
       renderInventory();
       showStart();
     } catch (e) { showError(e); }

@@ -33,6 +33,7 @@
       "text": "## The Shrine\n\nThe shrine door will not open for empty hands. Carved above the door: *\"Light must be carried, not merely kept.\"*\n\nThe lantern hangs cold at your belt. You need oil to wake the flame.",
       "options": [
         { "text": "Fill the lantern and light it.", "next": "shrine-lit", "requires": ["lantern-oil"] },
+        { "text": "Go back down to the market square.", "next": "market" },
         { "text": "Sit by the door until morning, empty-handed.", "next": "village-return" }
       ]
     },
@@ -40,6 +41,20 @@
       "text": "## The Flame\n\nYou fill the lantern, strike a spark, and the flame catches — warm, golden, alive. At the shrine, the old keeper takes the lantern from your hands and hangs it above the door.\n\n*\"It was never about delivering the light,\"* she says. *\"It was about carrying it.\"*\n\n## 🎉 The End — you kept your promise.",
       "grant": ["keepers-words"],
       "ending": true
+    },
+    "market": {
+      "text": "## The Market Square\n\nNobody sleeps in the village. A single oil lamp burns above the stall, and the stallholder is counting coins by its light.\n\n*\"One vial, last of the season,\"* she says, and does not look up.\n\nFrom here the shrine road climbs away into the dark, and the forest road goes back the way you came.",
+      "options": [
+        { "text": "Buy the last vial of lantern oil.", "next": "market-bought", "grant": ["lantern-oil"], "lockedIfOwned": ["lantern-oil"] },
+        { "text": "Climb the hill to the shrine.", "next": "shrine" },
+        { "text": "Go back to the forest road.", "next": "forest" }
+      ]
+    },
+    "market-bought": {
+      "text": "## One Vial\n\nThe coin leaves your hand, the vial leaves hers. It is heavier than it looks, and warm from sitting next to the lamp.\n\nYou still have choices to make. The square is right there.",
+      "options": [
+        { "text": "Stay in the square a while longer.", "next": "market" }
+      ]
     },
     "village-return": {
       "text": "## The Long Walk Home\n\nYou retrace your steps. The village elder listens silently as you explain, then nods slowly.\n\n*\"Another will try tomorrow,\"* she says. \"Perhaps with braver feet.\"\n\nYou sleep, but the howling on the hill stays with you for many nights.\n\n## The End (or is it?)",
