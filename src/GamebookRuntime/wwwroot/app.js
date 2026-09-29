@@ -276,7 +276,7 @@
     step: "step",
     theme: "Switch between light and dark",
     roll: "Roll the dice",
-    useValue: "Use value",
+    successOn: "Succeeds on",
     yourRoll: "You rolled",
     theEnd: "The End",
     error: "Something went wrong",
@@ -469,12 +469,43 @@
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
+  // The values on which a dice step succeeds: the ranges the adventure flagged
+  // with "success", collapsed into a readable list ("4–6", "1, 4–6"). Empty when
+  // the adventure marks no outcome as a success — then no odds are advertised.
+  function successValues(dice) {
+    const sides = dice.sides ?? 6;
+    const values = (dice.outcomes ?? [])
+      .filter((o) => o.success)
+      .flatMap((o) => Array.from({ length: Math.max(0, o.to - o.from + 1) }, (_, i) => o.from + i))
+      .filter((v) => v >= 1 && v <= sides)
+      .sort((a, b) => a - b);
+    if (!values.length) return "";
+    const ranges = [];
+    for (let i = 0; i < values.length; i++) {
+      const from = values[i];
+      let to = from;
+      while (values[i + 1] === to + 1) to = values[++i];
+      ranges.push(from === to ? `${from}` : `${from}–${to}`);
+    }
+    return ranges.join(", ");
+  }
+
+  // A dice step is a choice like any other: it says what the reader is attempting
+  // and on which values it succeeds, and then the runtime rolls for them. There is
+  // no field for typing in your own value — the odds are the odds.
   function buildDiceBlock(opt, notes = []) {
     const tpl = $("#tpl-dice").content.cloneNode(true);
     const block = $(".dice-block", tpl);
     const sides = opt.dice.sides ?? 6;
-    const input = $(".dice-input", block);
-    input.min = 1; input.max = sides; input.placeholder = `1–${sides}`;
+
+    $(".dice-text", block).textContent = opt.text;
+
+    const success = successValues(opt.dice);
+    if (success) {
+      const note = $(".dice-success", block);
+      note.classList.remove("hidden");
+      note.textContent = `${t("successOn")} ${success}`;
+    }
 
     // A gated dice step shows what is missing and cannot be rolled.
     if (notes.length) {
@@ -482,6 +513,15 @@
       note.className = "req-note";
       note.textContent = `🔒 ${notes.join(" · ")}`;
       block.prepend(note);
+    }
+
+    // Debug mode: where each value leads, so a tester can report "the 4–6 outcome
+    // of `river` points at the wrong node" — a dice step has no single `next`.
+    if (debugOn()) {
+      const map = document.createElement("div");
+      map.className = "debug-target dice-debug";
+      map.textContent = (opt.dice.outcomes ?? []).map((o) => `${o.from}–${o.to} → ${o.next}`).join(" · ");
+      block.appendChild(map);
     }
 
     const resolve = (value) => {
@@ -493,27 +533,15 @@
 
     const rollBtn = $(".btn-dice-roll", block);
     rollBtn.textContent = opt.dice.label ?? `🎲 ${t("roll")}`;
+    rollBtn.disabled = notes.length > 0;
     rollBtn.addEventListener("click", async () => {
-      rollBtn.disabled = true; input.disabled = true;
+      rollBtn.disabled = true;
       const res = await api(`/api/roll?sides=${sides}`);
       const resBox = $(".dice-result", block);
       resBox.classList.remove("hidden");
       $(".dice-value", resBox).textContent = `${t("yourRoll")}: ${res.value}`;
       setTimeout(() => resolve(res.value), 700);
     });
-
-    $(".btn-dice-use", block).textContent = t("useValue");
-    $(".btn-dice-use", block).addEventListener("click", () => {
-      const v = parseInt(input.value, 10);
-      if (!Number.isInteger(v) || v < 1 || v > sides) { input.focus(); return; }
-      resolve(v);
-    });
-
-    if (notes.length) {
-      $(".btn-dice-roll", block).disabled = true;
-      $(".btn-dice-use", block).disabled = true;
-      input.disabled = true;
-    }
 
     return block;
   }

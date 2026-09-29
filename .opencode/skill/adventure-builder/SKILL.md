@@ -40,7 +40,7 @@ Rules of thumb:
 - First adventures: 10–30 nodes.
 - Every non-ending node: 1–6 options.
 - Dice steps: only where tension is high and both outcomes lead somewhere interesting. Outcomes must cover 1..6 (ranges may be 1–3 / 4–6).
-- The dice can be rolled by the system or entered manually by the reader — write text that works for both ("roll a die: 1–3 … 4–6 …").
+- The runtime throws the die — the reader cannot type in their own value, so write the option `text` as the attempt ("Attempt to move the boulder.") and mark the winning range with `"success": true`; the step then shows `Succeeds on 4–6`. Write the node prose so both ranges are worth landing on.
 
 ### 4. Write the prose
 
@@ -91,14 +91,14 @@ Schema:
 - Several options of the same node can grant *different* items and lead to the same next node — that is how you write "he answers exactly one question you ask".
 - The inventory panel is always visible while playing (fixed bar on phones, sidebar on wider screens); undiscovered entries show as `???` when `hideUndiscovered` is true.
 - Every `grant`/`remove`/`requires`/`requiresAny`/`lockedIfOwned` key must exist in `items`, and those fields are only allowed when the inventory is enabled — the runtime validates this at startup and refuses to boot otherwise.
-- A dice step grants its `grant` when the reader rolls, not per outcome. When an outcome should change the reward, route the outcomes to different nodes that grant it.
+- A dice step grants its `grant` when the reader rolls, not per outcome. When an outcome should change the reward, route the outcomes to different nodes that grant it. Give the dice option a real `text` (it is shown as the choice) and mark the good range with `"success": true` so the reader is told what the roll has to beat.
 - Design guidance: grant items *just before or where* they matter; always provide an alternative path when a gated option could otherwise dead-end the player; keep the catalog small (5–15 entries) by merging related things into one entry.
 
 **Prologue (optional):** `"intro"` is prose for the title screen, above the start button, in the same markdown subset as node text — use it for a long opening instead of spending the first node on it. It renders in the same story panel as any other node, so keep it short enough to leave the start button visible without scrolling. Omit it and the title screen stays title + author + button.
 
 **UI language:** the adventure file also drives the runtime UI (buttons like "Begin", "Save progress", "Roll the dice"). Provide a `"labels"` object keyed by language tag; any key you omit falls back to English. Available keys:
 
-`loading, intro, begin, restart, restartQ, continue, save, savePrompt, saves, load, delete, inventory, undiscovered, needsItems, needsAny, noOptions, back, step, theme, roll, useValue, yourRoll, theEnd, error` (`noOptions` is shown when `lockedIfOwned` happens to close every option of a node; `back` and `step` only appear in the runtime's debug mode, which the *operator* turns on with `DEBUG__ENABLED` — not something the adventure file can enable)
+`loading, intro, begin, restart, restartQ, continue, save, savePrompt, saves, load, delete, inventory, undiscovered, needsItems, needsAny, noOptions, back, step, theme, roll, successOn, yourRoll, theEnd, error` (`noOptions` is shown when `lockedIfOwned` happens to close every option of a node; `successOn` prefixes the values a dice step succeeds on; `back` and `step` only appear in the runtime's debug mode, which the *operator* turns on with `DEBUG__ENABLED` — not something the adventure file can enable)
 
 Hard requirements (the runtime validates these at startup and refuses to boot otherwise):
 - `id`, `title`, `start` present; `start` exists in `nodes`.

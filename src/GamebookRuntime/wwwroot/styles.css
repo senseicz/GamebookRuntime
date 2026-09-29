@@ -74,18 +74,19 @@ body {
 
 .hidden { display: none !important; }
 
-.dice-input {
-  width: 100%; padding: .7rem .8rem; border-radius: var(--radius);
-  background: var(--panel-2); color: var(--text); border: 1px solid var(--border-strong); font: inherit;
-}
 .btn-branch-reload { margin-top: .5rem; }
 
-.dice-block { margin: .8rem 0; padding: .9rem; background: var(--panel); border: 1px dashed var(--border-strong); border-radius: var(--radius); }
-.dice-actions { display: flex; gap: .6rem; align-items: stretch; flex-wrap: wrap; }
-.dice-actions .btn { width: auto; flex: 1 1 10rem; margin: 0; text-align: center; }
-.dice-manual { display: flex; gap: .5rem; flex: 1 1 10rem; }
-.dice-input { width: 5.5rem; text-align: center; }
-.dice-manual .btn { flex: 1; }
+/* Dice step: a choice like any other (its own text), the values it takes to
+   succeed, then the roll itself. The runtime rolls — there is no input field. */
+.dice-block { margin: .8rem 0; padding: .9rem 1rem; background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius); }
+.dice-text { font-weight: 600; }
+.dice-text::before { content: "› "; color: var(--accent); font-weight: 700; }
+.dice-success { color: var(--muted); font-size: .85rem; margin-top: .2rem; }
+.dice-success::before { content: "🎯 "; }
+.dice-block .req-note { margin-bottom: .6rem; }
+.dice-debug { margin-top: .6rem; }
+.dice-actions { display: flex; gap: .6rem; align-items: stretch; flex-wrap: wrap; margin-top: .7rem; }
+.dice-actions .btn { width: 100%; flex: 1 1 10rem; margin: 0; text-align: center; }
 .dice-result { text-align: center; margin-bottom: .75rem; }
 .dice-value {
   display: inline-block; background: var(--accent); color: var(--accent-contrast);

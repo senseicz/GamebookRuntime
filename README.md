@@ -5,7 +5,7 @@ A tiny, self-hostable **.NET 10** runtime for gamebook-style text adventures.
 - Adventures live as **JSON files in the author's own GitHub repository**.
 - The adventure is **downloaded at deployment time** into a local data directory; the runtime reads **local files only** — no GitHub calls while playing, instant startup, read-only for its whole lifetime.
 - **Branch selection happens at deployment** (`ADVENTURE_REPO_BRANCH` in docker compose): point the runtime at `main` for the public release or a draft branch for testing.
-- Dice-driven steps (d6 by default): the reader can let the server roll, or type in the result of their own physical die.
+- Dice-driven steps (d6 by default): the runtime throws the die, and the step says in its own text what the reader is attempting and on which values it succeeds.
 - **Any language** — adventure text is untouched; the **whole UI** (buttons, prompts) is driven by the adventure's `labels`, so the reader sees a single consistent language.
 - **Images** are embedded with markdown `![alt](url)` or a node-level `image` field.
 - **Progress is saved in the browser's localStorage** — automatic "continue" plus multiple named saves per adventure.
@@ -74,7 +74,7 @@ The adventure is read from disk **once at startup** and held in memory; the runn
             "sides": 6,
             "outcomes": [
               { "from": 1, "to": 3, "next": "bad-luck" },
-              { "from": 4, "to": 6, "next": "good-luck" }
+              { "from": 4, "to": 6, "next": "good-luck", "success": true }
             ]
           }
         }
@@ -98,9 +98,33 @@ story panel as any other node, so the title page flows like the rest of the game
 enough to leave the start button visible without scrolling.
 Omit it and the title screen is title + author + button, as before.
 
+### Dice steps
+
+An option with a `dice` block is resolved by a throw instead of going straight to `next`. Its `text` is shown like any other option's — *what the reader is attempting* — the runtime throws the die, and the outcome range the roll landed in decides the node.
+
+The reader does **not** type in a value of their own: a dice step has one button, and the runtime rolls. Readers who like a physical die can still throw one next to the phone — they just have to live with the number they get, which is the point.
+
+Mark the winning range with `"success": true` and the step shows the values it takes to succeed (`🎯 Succeeds on 4–6`, `successOn` in `labels`):
+
+```jsonc
+{
+  "text": "Attempt to move the boulder.",
+  "dice": {
+    "sides": 6,
+    "label": "🎲 Roll to shove it aside",   // optional; overrides the default button text
+    "outcomes": [
+      { "from": 1, "to": 3, "next": "boulder-fail" },
+      { "from": 4, "to": 6, "next": "boulder-success", "success": true }
+    ]
+  }
+}
+```
+
+Success ranges may be several (`1–2` and `5–6` → `Succeeds on 1–2, 5–6`); they are shown collapsed. An adventure that marks none simply does not advertise odds. The values themselves are never shown before the roll — only which of them succeed.
+
 ### UI language (`labels`)
 
-The adventure file drives the runtime UI. Provide a `"labels"` object keyed by language tag (matching the adventure's `language`); any key you omit falls back to English. Available keys: `loading, intro, begin, restart, restartQ, continue, save, savePrompt, saves, load, delete, branch, reload, inventory, undiscovered, needsItems, needsAny, noOptions, back, step, theme, roll, useValue, yourRoll, theEnd, error`.
+The adventure file drives the runtime UI. Provide a `"labels"` object keyed by language tag (matching the adventure's `language`); any key you omit falls back to English. Available keys: `loading, intro, begin, restart, restartQ, continue, save, savePrompt, saves, load, delete, branch, reload, inventory, undiscovered, needsItems, needsAny, noOptions, back, step, theme, roll, successOn, yourRoll, theEnd, error`.
 
 Rules enforced at startup (the runtime refuses to start on an invalid adventure):
 
@@ -124,7 +148,7 @@ When the adventure defines `"inventory": { "enabled": true, "items": { … } }`,
 | option | `requiresAny` | **at least one** of the listed keys must be owned |
 | option | `lockedIfOwned` | the option is **not offered at all** when **any** of the listed keys is owned |
 
-An option is usable when every `requires` key is owned *and* at least one `requiresAny` key is owned; both lists may be combined. Locked options (including dice steps) show a lock and what is missing, and cannot be picked or rolled. When a move both gives and takes, the item leaves the bag first and the new one arrives after; a dice step gives its `grant` when the reader rolls, not per outcome — route outcomes to different nodes when an outcome should change the reward.
+An option is usable when every `requires` key is owned *and* at least one `requiresAny` key is owned; both lists may be combined. Locked options (including [dice steps](#dice-steps)) show a lock and what is missing, and cannot be picked or rolled. When a move both gives and takes, the item leaves the bag first and the new one arrives after; a dice step gives its `grant` when the reader rolls, not per outcome — route outcomes to different nodes when an outcome should change the reward.
 
 ```jsonc
 {

@@ -101,14 +101,14 @@ app.MapGet("/api/node/{key}", (string key) =>
             {
                 sides = o.Dice.Sides,
                 label = o.Dice.Label,
-                outcomes = o.Dice.Outcomes.Select(x => new { from = x.From, to = x.To, next = x.Next })
+                outcomes = o.Dice.Outcomes.Select(x => new { from = x.From, to = x.To, next = x.Next, success = x.Success })
             }
         })
     });
 });
 
-// Server-side dice roll. The client may also pass the result of the reader's
-// own physical die (the input field); both paths resolve the same outcomes.
+// Server-side dice roll. The reader never types in a value: the runtime throws
+// the die, and the step shows which values it takes to succeed.
 app.MapGet("/api/roll", (int sides) =>
 {
     if (sides < 2 || sides > 100) sides = 6;

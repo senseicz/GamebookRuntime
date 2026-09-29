@@ -65,7 +65,8 @@ public sealed class AdventureOption
 {
     /// <summary>Label of the choice shown to the reader.</summary>
     public string Text { get; set; } = "";
-    /// <summary>Key of the node to go to when chosen.</summary>
+    /// <summary>Key of the node to go to when chosen. Not used when <see cref="Dice"/> is set —
+    /// the dice outcomes carry the destinations then.</summary>
     public string Next { get; set; } = "";
     /// <summary>Item/knowledge keys the player must have for this option to be usable. Requires inventory to be enabled.</summary>
     public List<string>? Requires { get; set; }
@@ -101,4 +102,7 @@ public sealed class DiceOutcome
     public int To { get; set; }
     /// <summary>Destination node key.</summary>
     public string Next { get; set; } = "";
+    /// <summary>When true, this range is the winning roll: the step shows these values as its
+    /// "succeeds on …" hint. Optional — an unmarked dice step simply does not advertise odds.</summary>
+    public bool Success { get; set; }
 }

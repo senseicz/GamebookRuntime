@@ -10,7 +10,7 @@
             "sides": 6,
             "outcomes": [
               { "from": 1, "to": 3, "next": "boulder-fail" },
-              { "from": 4, "to": 6, "next": "boulder-success" }
+              { "from": 4, "to": 6, "next": "boulder-success", "success": true }
             ]
           }
         }

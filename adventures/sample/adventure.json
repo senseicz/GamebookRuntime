@@ -34,7 +34,7 @@
       "step": "krok",
       "theme": "Přepnout světlý a tmavý motiv",
       "roll": "Hodit kostkou",
-      "useValue": "Použít hodnotu",
+      "successOn": "Vyhráváš při hodu",
       "yourRoll": "Hodil jsi",
       "theEnd": "Konec"
     }
