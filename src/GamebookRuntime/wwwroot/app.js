@@ -212,12 +212,12 @@
     return notes;
   }
 
-  // An option that is not offered at all: the player already owns one of its
-  // lockedIfOwned keys. Hidden rather than locked — a hub must not advertise the
-  // "buy the vial of oil" step to someone who is already carrying the oil.
-  function isHidden(opt) {
-    if (!inventoryEnabled()) return false;
-    return (opt.lockedIfOwned ?? []).some((k) => state.inventory.includes(k));
+  // Hidden until a story milestone is visited, or after acquiring an item
+  // that makes this option redundant. Requires/requiresAny still lock visible choices.
+  function isHidden(opt, visitedNodes) {
+    const afterAny = opt.showAfterAny ?? [];
+    if (afterAny.length && !afterAny.some((key) => visitedNodes.has(key))) return true;
+    return inventoryEnabled() && (opt.lockedIfOwned ?? []).some((k) => state.inventory.includes(k));
   }
 
   function renderInventory() {
@@ -425,9 +425,10 @@
     $(".node-text", tpl).innerHTML = renderMarkdown(node.text || "");
 
     const opts = $(".node-options", tpl);
+    const visitedNodes = new Set(state.history);
     let shown = 0;
     for (const opt of node.options ?? []) {
-      if (isHidden(opt)) continue;
+      if (isHidden(opt, visitedNodes)) continue;
       shown++;
       const notes = lockNotes(opt);
       if (opt.dice) {
@@ -449,8 +450,8 @@
       }
     }
 
-    // lockedIfOwned can take every option away; say so rather than leaving the
-    // reader on a node with no way forward.
+    // Hidden conditions can take every option away; say so rather than leaving
+    // the reader on a node with no way forward.
     if (shown === 0 && !node.ending) {
       const empty = document.createElement("div");
       empty.className = "req-note node-empty";

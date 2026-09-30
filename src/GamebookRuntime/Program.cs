@@ -95,6 +95,7 @@ app.MapGet("/api/node/{key}", (string key) =>
             requires = o.Requires ?? [],
             requiresAny = o.RequiresAny ?? [],
             lockedIfOwned = o.LockedIfOwned ?? [],
+            showAfterAny = o.ShowAfterAny ?? [],
             grant = o.Grant ?? [],
             remove = o.Remove ?? [],
             dice = o.Dice is null ? null : new

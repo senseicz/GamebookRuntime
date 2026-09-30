@@ -76,6 +76,9 @@ public sealed class AdventureOption
     /// is not offered at all (hidden, not locked). For hub steps the player can return to — "buy the vial of
     /// oil" must disappear once the oil is in the bag. Requires inventory to be enabled.</summary>
     public List<string>? LockedIfOwned { get; set; }
+    /// <summary>Node keys that reveal this option after any one of them has been visited.
+    /// Hidden until then, regardless of inventory; also applies to dice steps.</summary>
+    public List<string>? ShowAfterAny { get; set; }
     /// <summary>Item/knowledge keys granted when this option is chosen — what the player takes away from doing it. Requires inventory to be enabled.</summary>
     public List<string>? Grant { get; set; }
     /// <summary>Item/knowledge keys lost when this option is chosen (given away, spent, seized). Requires inventory to be enabled.</summary>

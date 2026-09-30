@@ -123,6 +123,14 @@ public sealed class LocalAdventureSource(IConfiguration config, ILogger<LocalAdv
                 CheckItems($"node '{key}' option", "requires", opt.Requires);
                 CheckItems($"node '{key}' option", "requiresAny", opt.RequiresAny);
                 CheckItems($"node '{key}' option", "locks when owned", opt.LockedIfOwned);
+                if (opt.ShowAfterAny is { } visitedKeys)
+                {
+                    if (visitedKeys.Count == 0)
+                        problems.Add($"node '{key}' option '{opt.Text}' showAfterAny must list at least one node");
+                    foreach (var visitedKey in visitedKeys)
+                        if (string.IsNullOrWhiteSpace(visitedKey) || !a.Nodes.ContainsKey(visitedKey))
+                            problems.Add($"node '{key}' option '{opt.Text}' showAfterAny points to missing node '{visitedKey}'");
+                }
                 if (opt.Dice is null)
                 {
                     if (!a.Nodes.ContainsKey(opt.Next))

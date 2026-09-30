@@ -132,6 +132,7 @@ Rules enforced at startup (the runtime refuses to start on an invalid adventure)
 - every non-ending node must have at least one option,
 - dice outcomes must cover every value `1..sides`,
 - node keys must be unique across the main file and all chapters,
+- every `showAfterAny` list must be nonempty and reference existing nodes (after chapter merging),
 - every `grant` / `remove` / `requires` / `requiresAny` / `lockedIfOwned` key must exist in the inventory catalog and are only allowed when `inventory.enabled` is true.
 
 ### Inventory (optional)
@@ -147,6 +148,7 @@ When the adventure defines `"inventory": { "enabled": true, "items": { … } }`,
 | option | `requires` | all listed keys must be owned |
 | option | `requiresAny` | **at least one** of the listed keys must be owned |
 | option | `lockedIfOwned` | the option is **not offered at all** when **any** of the listed keys is owned |
+| option | `showAfterAny` | hidden until **at least one** listed node has been visited (inventory not required) |
 
 An option is usable when every `requires` key is owned *and* at least one `requiresAny` key is owned; both lists may be combined. Locked options (including [dice steps](#dice-steps)) show a lock and what is missing, and cannot be picked or rolled. When a move both gives and takes, the item leaves the bag first and the new one arrives after; a dice step gives its `grant` when the reader rolls, not per outcome — route outcomes to different nodes when an outcome should change the reward.
 
@@ -180,6 +182,26 @@ An option is usable when every `requires` key is owned *and* at least one `requi
 ```
 
 Two rules for hub nodes: never let `lockedIfOwned` close **every** exit of a node (the runtime then shows a "nothing left to do here" note instead of a dead end — use `noOptions` in `labels` to word it), and do not use it to *consume* an item — that is what `remove` on the option is for.
+
+#### Revealing discoveries (`showAfterAny`)
+
+When a hub offers several destinations, a choice can remain completely hidden until the reader
+discovers where it leads. List one or more **node keys**; visiting any one of them reveals the
+option, including after returning to the hub. This works without inventory and also applies to
+dice steps. Once revealed, `requires`/`requiresAny` can still show it as locked, and
+`lockedIfOwned` can still hide it. Unlike an inventory item, a visited node remains a discovery
+even if the player later loses an item.
+
+```jsonc
+{ "text": "Follow the river upstream.", "next": "inlet",
+  "showAfterAny": ["found-riverbank", "read-the-map"] }
+```
+
+The runtime checks these keys after merging chapters and rejects missing keys or an empty list.
+Node keys must match exactly, including case, just like option destinations.
+Autosaves and named saves already contain the visited-node history; starting over clears it, and
+stepping back in debug mode rewinds it, so no new save data is needed. Always leave a way forward
+from a hub if all its discovery-based options are hidden (`noOptions` is shown otherwise).
 
 See [`adventures/sample/adventure.json`](adventures/sample/adventure.json) for a complete example (*The Lost Lantern*, 12 nodes across two files, with a dice step, option rewards, a returnable hub node with `lockedIfOwned` and Czech UI labels).
 
