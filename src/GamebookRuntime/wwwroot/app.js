@@ -212,12 +212,17 @@
     return notes;
   }
 
-  // Hidden until a story milestone is visited, or after acquiring an item
+  // Hidden until a story milestone is visited, hidden once a node was already visited (hideAfterAny),
+  // or after acquiring an item
   // that makes this option redundant. Requires/requiresAny still lock visible choices.
   function isHidden(opt, visitedNodes) {
     const afterAny = opt.showAfterAny ?? [];
     if (afterAny.length && !afterAny.some((key) => visitedNodes.has(key))) return true;
-    return inventoryEnabled() && (opt.lockedIfOwned ?? []).some((k) => state.inventory.includes(k));
+    if ((opt.hideAfterAny ?? []).some((key) => visitedNodes.has(key))) return true;
+    if (!inventoryEnabled()) return false;
+    const allOwned = opt.lockedIfAllOwned ?? [];
+    if (allOwned.length && allOwned.every((k) => state.inventory.includes(k))) return true;
+    return (opt.lockedIfOwned ?? []).some((k) => state.inventory.includes(k));
   }
 
   function renderInventory() {

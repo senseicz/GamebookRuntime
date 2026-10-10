@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace GamebookRuntime;
 
@@ -70,11 +71,13 @@ public sealed class LocalAdventureSource(IConfiguration config, ILogger<LocalAdv
                 PropertyNameCaseInsensitive = true,
                 ReadCommentHandling = JsonCommentHandling.Skip,
                 AllowTrailingCommas = true,
+                // A misspelled or unsupported field (e.g. "lockedIfOwnd") is an error, not silently ignored.
+                UnmappedMemberHandling = JsonUnmappedMemberHandling.Disallow,
             }) ?? throw new InvalidOperationException($"'{sourceName}' is not a valid adventure file.");
         }
         catch (System.Text.Json.JsonException e)
         {
-            throw new InvalidOperationException($"'{sourceName}' is not valid JSON: {e.Message}");
+            throw new InvalidOperationException($"'{sourceName}' does not match the adventure format: {e.Message}");
         }
     }
 
@@ -123,6 +126,15 @@ public sealed class LocalAdventureSource(IConfiguration config, ILogger<LocalAdv
                 CheckItems($"node '{key}' option", "requires", opt.Requires);
                 CheckItems($"node '{key}' option", "requiresAny", opt.RequiresAny);
                 CheckItems($"node '{key}' option", "locks when owned", opt.LockedIfOwned);
+                CheckItems($"node '{key}' option", "locks when all owned", opt.LockedIfAllOwned);
+                if (opt.HideAfterAny is { } hiddenAfterKeys)
+                {
+                    if (hiddenAfterKeys.Count == 0)
+                        problems.Add($"node '{key}' option '{opt.Text}' hideAfterAny must list at least one node");
+                    foreach (var hiddenKey in hiddenAfterKeys)
+                        if (string.IsNullOrWhiteSpace(hiddenKey) || !a.Nodes.ContainsKey(hiddenKey))
+                            problems.Add($"node '{key}' option '{opt.Text}' hideAfterAny points to missing node '{hiddenKey}'");
+                }
                 if (opt.ShowAfterAny is { } visitedKeys)
                 {
                     if (visitedKeys.Count == 0)

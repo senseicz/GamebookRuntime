@@ -133,7 +133,9 @@ Rules enforced at startup (the runtime refuses to start on an invalid adventure)
 - dice outcomes must cover every value `1..sides`,
 - node keys must be unique across the main file and all chapters,
 - every `showAfterAny` list must be nonempty and reference existing nodes (after chapter merging),
-- every `grant` / `remove` / `requires` / `requiresAny` / `lockedIfOwned` key must exist in the inventory catalog and are only allowed when `inventory.enabled` is true.
+- every `grant` / `remove` / `requires` / `requiresAny` / `lockedIfOwned` / `lockedIfAllOwned` key must exist in the inventory catalog and are only allowed when `inventory.enabled` is true,
+- every `hideAfterAny` list must be nonempty and reference existing nodes (after chapter merging),
+- no unknown field names anywhere in the adventure or chapter files: a misspelled field such as `lockedIfOwnd` is an error, not silently ignored.
 
 ### Inventory (optional)
 
@@ -148,7 +150,9 @@ When the adventure defines `"inventory": { "enabled": true, "items": { … } }`,
 | option | `requires` | all listed keys must be owned |
 | option | `requiresAny` | **at least one** of the listed keys must be owned |
 | option | `lockedIfOwned` | the option is **not offered at all** when **any** of the listed keys is owned |
+| option | `lockedIfAllOwned` | the option is **not offered at all** once the reader owns **all** of the listed keys |
 | option | `showAfterAny` | hidden until **at least one** listed node has been visited (inventory not required) |
+| option | `hideAfterAny` | the option is **not offered at all** once **any** listed node has been visited (the negation of `showAfterAny`) |
 
 An option is usable when every `requires` key is owned *and* at least one `requiresAny` key is owned; both lists may be combined. Locked options (including [dice steps](#dice-steps)) show a lock and what is missing, and cannot be picked or rolled. When a move both gives and takes, the item leaves the bag first and the new one arrives after; a dice step gives its `grant` when the reader rolls, not per outcome — route outcomes to different nodes when an outcome should change the reward.
 
@@ -182,6 +186,10 @@ An option is usable when every `requires` key is owned *and* at least one `requi
 ```
 
 Two rules for hub nodes: never let `lockedIfOwned` close **every** exit of a node (the runtime then shows a "nothing left to do here" note instead of a dead end — use `noOptions` in `labels` to word it), and do not use it to *consume* an item — that is what `remove` on the option is for.
+
+#### Hiding a step once it is done (`lockedIfAllOwned`, `hideAfterAny`)
+
+`lockedIfAllOwned` hides an option once the reader owns **every** listed key. Use it when a step is finished only when the whole set is complete, for example "gather the four pieces of kit" once all four are in the bag. `hideAfterAny` hides an option once the reader has visited **any** listed node. Use it for "already tried that" choices, so you do not need a marker item just to remember that something happened. Both are hidden, not locked, and both follow the same rule as `lockedIfOwned`: never let them close every exit of a node.
 
 #### Revealing discoveries (`showAfterAny`)
 
