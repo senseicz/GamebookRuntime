@@ -76,6 +76,13 @@ public sealed class AdventureOption
     /// is not offered at all (hidden, not locked). For hub steps the player can return to — "buy the vial of
     /// oil" must disappear once the oil is in the bag. Requires inventory to be enabled.</summary>
     public List<string>? LockedIfOwned { get; set; }
+    /// <summary>Item/knowledge keys that close this option off once the player owns ALL of them — the step is
+    /// finished only when the whole set is complete ("gather the four pieces of kit"). Hidden, not locked.
+    /// Requires inventory to be enabled.</summary>
+    public List<string>? LockedIfAllOwned { get; set; }
+    /// <summary>Node keys that close this option off once the reader has visited ANY of them — the negation of
+    /// <see cref="ShowAfterAny"/>, for "already tried that" choices without a marker item. Hidden, not locked.</summary>
+    public List<string>? HideAfterAny { get; set; }
     /// <summary>Node keys that reveal this option after any one of them has been visited.
     /// Hidden until then, regardless of inventory; also applies to dice steps.</summary>
     public List<string>? ShowAfterAny { get; set; }
